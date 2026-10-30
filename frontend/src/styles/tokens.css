@@ -1,0 +1,104 @@
+/* ═══════════════════════════════════════════════════
+   DESIGN TOKENS
+   All colors, fonts, spacing, and radii are defined here.
+   Components reference these tokens — never raw hex values.
+   Palette follows the Atomity design system.
+   ═══════════════════════════════════════════════════ */
+
+:root {
+  /* ── Brand ── */
+  --atomity-green: #97ddb1;
+  --atomity-green-light: #b0ecc6;
+  --atomity-green-tint: #ddf5e6;
+  --atomity-green-dark: #7ecfa0;
+  --atomity-orange: #ff6b00;
+
+  /* ── Neutrals ── */
+  --atomity-black: #030303;
+  --atomity-gray-900: #0c0c0c;
+  --atomity-gray-800: #1c1c1e;
+  --atomity-gray-700: rgba(3, 3, 3, 0.8);
+  --atomity-gray-600: rgba(3, 3, 3, 0.7);
+  --atomity-gray-500: rgba(3, 3, 3, 0.62);
+  --atomity-gray-400: rgba(3, 3, 3, 0.4);
+  --atomity-gray-300: rgba(3, 3, 3, 0.22);
+  --atomity-gray-200: rgba(3, 3, 3, 0.12);
+  --atomity-gray-100: #e8e5d9;
+  --atomity-gray-50: #f6f4ec;
+  --atomity-white: #fbfaf7;
+  --pure-white: #ffffff;
+
+  /* ── Semantic surfaces / text / borders ── */
+  --surface-page: var(--atomity-gray-50);
+  --surface-card: var(--atomity-white);
+  --surface-input: var(--pure-white);
+  --surface-hover: var(--atomity-gray-100);
+  --surface-subtle: rgba(3, 3, 3, 0.04);
+  --surface-dark: var(--atomity-gray-900);
+  --text-primary: var(--atomity-black);
+  --text-secondary: var(--atomity-gray-600);
+  --text-muted: rgba(3, 3, 3, 0.5);
+  --text-on-dark: var(--atomity-gray-50);
+  --border-light: rgba(3, 3, 3, 0.12);
+  --border-strong: rgba(3, 3, 3, 0.22);
+
+  /* ── Search-result preview (mimics a search engine's link colour) ── */
+  --search-preview-link: #1a0dab;
+
+  /* ── Status chips (post lifecycle) ── */
+  --chip-published-bg: rgba(151, 221, 177, 0.38);
+  --chip-draft-bg: rgba(255, 179, 71, 0.28);
+  --chip-archived-bg: var(--atomity-gray-100);
+  --chip-danger-bg: rgba(255, 105, 97, 0.28);
+
+  --radius-pill: 9999px;
+  --backdrop: rgba(3, 3, 3, 0.45);
+  --focus-ring: 0 0 0 3px rgba(151, 221, 177, 0.5);
+
+  /* ── Transitions ── */
+  --transition-fast: 150ms ease;
+  --transition-base: 250ms ease;
+
+  /* ── Z-index scale ── */
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-modal: 400;
+  --z-toast: 500;
+
+  /* ── Typography (font variables come from next/font in app/layout.tsx) ── */
+  --font-body: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-code: var(--font-jetbrains-mono), ui-monospace, monospace;
+
+  /* ── Shell metrics ── */
+  --shell-sidebar-w: 224px;
+  --shell-sidebar-w-collapsed: 64px;
+  --shell-topbar-h: 50px;
+  --page-pad: 24px;
+  --editor-sidebar-w: 340px;
+}
+
+/* Feedback colors, radius and shadow scales live in @theme (not :root) because Tailwind owns these
+   namespaces: declaring them here emits the same CSS variables on :root *and*
+   generates the matching utilities (`rounded-lg`, `shadow-card`, …). */
+@theme {
+  /* ── Feedback colors (→ text-error, bg-error-bg, …) ── */
+  --color-success: #1e8e3e;
+  --color-success-bg: rgba(30, 142, 62, 0.08);
+  --color-warning: #ff6b00;
+  --color-warning-bg: rgba(255, 107, 0, 0.08);
+  --color-error: #d93025;
+  --color-error-bg: rgba(217, 48, 37, 0.08);
+  --color-error-border: rgba(217, 48, 37, 0.32);
+  --color-error-text: #a3241b;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+
+  --shadow-card: 0 1px 3px rgba(3, 3, 3, 0.04);
+  --shadow-card-hover: 0 4px 20px rgba(3, 3, 3, 0.08);
+  --shadow-popover: 0 12px 32px rgba(3, 3, 3, 0.14);
+  --shadow-modal: 0 8px 40px rgba(3, 3, 3, 0.16);
+}

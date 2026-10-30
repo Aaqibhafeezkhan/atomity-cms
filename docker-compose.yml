@@ -1,0 +1,72 @@
+# Full local stack: `docker compose up --build`, then open http://localhost:3000.
+# Values come from .env (copy .env.example); the defaults below are for local use only.
+name: atomity-cms
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-general_cms}
+      POSTGRES_USER: ${POSTGRES_USER:-general_cms}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-general_cms}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-general_cms}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-general_cms}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-general_cms}
+      # Local defaults sign you in as admin@example.com / admin. Override all three in .env for anything real.
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:-$$2a$$10$$wBISilJqYrK8S7ddSh4zhuWUnPjn24l5hToR4l4lIkKH/WG.fsKI6}
+      JWT_SECRET: ${JWT_SECRET:-local-development-secret-not-for-production-use}
+      # Images are stored on this volume (see MEDIA_STORAGE_DIR in backend/Dockerfile).
+    volumes:
+      - media-data:/data/media
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    environment:
+      BACKEND_API_URL: http://backend:8080
+      # This stack serves plain HTTP, where browsers other than Chrome/Firefox-on-localhost
+      # drop Secure cookies. Set to true in .env when serving over HTTPS.
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  # Example website that reads published content from the public API. Not started by default:
+  # `make demo` (or `docker compose --profile demo up -d mock-consumer`) starts it on http://localhost:4000.
+  mock-consumer:
+    profiles: ["demo"]
+    build: ./examples/mock-consumer
+    environment:
+      CMS_API_URL: http://backend:8080
+      # Used only by `node seed.mjs`; the local default admin password is "admin".
+      SEED_ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-admin}
+    ports:
+      - "${CONSUMER_PORT:-4000}:4000"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+  media-data:

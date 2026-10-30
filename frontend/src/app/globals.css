@@ -1,0 +1,30 @@
+@import "tailwindcss";
+@import "../styles/tokens.css";
+
+/* Expose the tokens as Tailwind utilities — `bg-page`, `text-muted`, `border-line`,
+   `rounded-lg`, `font-mono` … — so components use semantic names, never hex. */
+@theme inline {
+  --font-sans: var(--font-body);
+  --font-mono: var(--font-code);
+
+  --color-page: var(--surface-page);
+  --color-card: var(--surface-card);
+  --color-input: var(--surface-input);
+  --color-hover: var(--surface-hover);
+  --color-subtle: var(--surface-subtle);
+  --color-dark: var(--surface-dark);
+  --color-ink: var(--text-primary);
+  --color-secondary: var(--text-secondary);
+  --color-muted: var(--text-muted);
+  --color-on-dark: var(--text-on-dark);
+  --color-line: var(--border-light);
+  --color-line-strong: var(--border-strong);
+  --color-green: var(--atomity-green);
+  --color-green-light: var(--atomity-green-light);
+  --color-green-tint: var(--atomity-green-tint);
+  --color-green-dark: var(--atomity-green-dark);
+}
+
+@import "../styles/base.css";
+@import "../styles/components.css";
+@import "../styles/editor.css";

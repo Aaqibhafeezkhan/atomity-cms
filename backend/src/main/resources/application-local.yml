@@ -1,0 +1,22 @@
+# Local development only — talks to the postgres service from the root docker-compose.yml (`make db`).
+spring:
+  # Same values as the root .env (loaded by `make backend`), with docker-compose's defaults.
+  datasource:
+    url: jdbc:postgresql://localhost:${POSTGRES_PORT:5432}/${POSTGRES_DB:general_cms}
+    username: ${POSTGRES_USER:general_cms}
+    password: ${POSTGRES_PASSWORD:general_cms}
+
+generalcms:
+  # Local development only: sign in as admin@example.com / admin.
+  admin:
+    email: admin@example.com
+    password-hash: "$2a$10$wBISilJqYrK8S7ddSh4zhuWUnPjn24l5hToR4l4lIkKH/WG.fsKI6"
+  jwt:
+    secret: local-development-secret-not-for-production-use
+  media:
+    storage:
+      local-directory: ${MEDIA_STORAGE_DIR:./data/media}
+
+logging:
+  pattern:
+    console: '%d{HH:mm:ss.SSS} %-5level [%X{correlation_id}] %logger{36} - %msg%n'

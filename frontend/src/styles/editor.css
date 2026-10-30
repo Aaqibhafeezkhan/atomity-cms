@@ -1,0 +1,123 @@
+/* ═══════════════════════════════════════════════════
+   Post body typography — used by the Tiptap editor
+   (.post-content is set on its contenteditable root).
+   ═══════════════════════════════════════════════════ */
+
+@layer components {
+  .post-content {
+    min-height: 380px;
+    outline: none;
+    font-size: 15px;
+    line-height: 1.75;
+    color: var(--text-primary);
+  }
+
+  .post-content > * + * {
+    margin-top: 0.85em;
+  }
+
+  .post-content h2 {
+    margin-top: 1.6em;
+    font-size: 21px;
+    font-weight: 700;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+  }
+
+  .post-content h3 {
+    margin-top: 1.4em;
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.35;
+  }
+
+  .post-content a {
+    color: var(--text-primary);
+    text-decoration: underline;
+    text-decoration-color: var(--atomity-green-dark);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 3px;
+  }
+
+  .post-content ul,
+  .post-content ol {
+    padding-left: 1.4em;
+  }
+
+  .post-content ul {
+    list-style: disc;
+  }
+
+  .post-content ol {
+    list-style: decimal;
+  }
+
+  .post-content li + li {
+    margin-top: 0.3em;
+  }
+
+  .post-content li > p {
+    margin: 0;
+  }
+
+  .post-content blockquote {
+    border-left: 3px solid var(--atomity-green-dark);
+    padding-left: 1em;
+    color: var(--text-secondary);
+    font-style: italic;
+  }
+
+  .post-content code {
+    font-family: var(--font-code);
+    font-size: 0.86em;
+    background: var(--surface-hover);
+    border-radius: var(--radius-sm);
+    padding: 0.1em 0.35em;
+  }
+
+  .post-content pre {
+    font-family: var(--font-code);
+    font-size: 13px;
+    line-height: 1.6;
+    background: var(--surface-dark);
+    color: var(--text-on-dark);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+    overflow-x: auto;
+  }
+
+  .post-content pre code {
+    background: none;
+    padding: 0;
+    font-size: inherit;
+    color: inherit;
+  }
+
+  .post-content hr {
+    border: none;
+    border-top: 1.5px solid var(--border-light);
+    margin: 1.8em 0;
+  }
+
+  .post-content img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-light);
+  }
+
+  .post-content img.ProseMirror-selectednode {
+    box-shadow: var(--focus-ring);
+    border-color: var(--atomity-black);
+  }
+
+  /* Placeholder on the empty first paragraph (Tiptap's Placeholder extension). */
+  .post-content p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    pointer-events: none;
+    color: var(--atomity-gray-400);
+  }
+}

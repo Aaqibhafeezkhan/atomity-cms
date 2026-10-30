@@ -1,0 +1,88 @@
+#!/bin/sh
+# Pre-commit checks: the full verification (lint, types, build, tests), limited to the
+# parts of the repo being committed. pre-push stays light because this runs here.
+# Bypass in an emergency with `git commit --no-verify` (or SKIP_HOOKS=1).
+set -eu
+# File lists are split on newlines only, and never glob-expanded (paths like posts/[id]/page.tsx).
+set -f
+IFS='
+'
+
+[ "${SKIP_HOOKS:-0}" = "1" ] && exit 0
+
+root=$(git rev-parse --show-toplevel)
+cd "$root"
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -z "$staged" ] && exit 0
+
+fail() {
+  printf '\n\033[31m✖ pre-commit: %s\033[0m\n' "$1" >&2
+  exit 1
+}
+step() {
+  printf '\033[36m▸ %s\033[0m\n' "$1"
+}
+
+# ── Repository hygiene ────────────────────────────────────────────────────
+step "Checking staged files"
+
+# Real environment files hold secrets; only the *.example templates belong in git.
+env_files=$(printf '%s\n' "$staged" | grep -E '(^|/)\.env(\.[^/]*)?$' | grep -v '\.example$' || true)
+[ -n "$env_files" ] && fail "environment file(s) staged — these hold secrets:
+$env_files
+Unstage with: git restore --staged <file>"
+
+# Private keys and leftover merge-conflict markers, in the staged content itself.
+if git diff --cached -U0 --diff-filter=ACMR | grep -E '^\+' | grep -qE -- '-----BEGIN ([A-Z]+ )?PRIVATE KEY-----'; then
+  fail "a private key is being committed."
+fi
+if git diff --cached -U0 --diff-filter=ACMR | grep -E '^\+' | grep -qE '^\+(<<<<<<< |>>>>>>> |=======$)'; then
+  fail "merge-conflict markers in staged changes (<<<<<<< / ======= / >>>>>>>)."
+fi
+
+# Large files bloat the history forever.
+max_bytes=$((5 * 1024 * 1024))
+for file in $staged; do
+  size=$(git cat-file -s ":$file" 2>/dev/null || echo 0)
+  [ "$size" -gt "$max_bytes" ] && fail "$file is $((size / 1024 / 1024)) MB — files over 5 MB don't belong in git."
+done
+
+# ── Frontend ──────────────────────────────────────────────────────────────
+frontend_code=$(printf '%s\n' "$staged" | grep -E '^frontend/.*\.(ts|tsx|js|jsx|mjs|cjs)$' || true)
+# Styles, config and dependency changes don't need ESLint but can still break the build.
+frontend_other=$(printf '%s\n' "$staged" | grep -E '^frontend/' | grep -vE '\.(ts|tsx|js|jsx|mjs|cjs|md)$' || true)
+if [ -n "$frontend_code" ] || [ -n "$frontend_other" ]; then
+  [ -d frontend/node_modules ] || fail "frontend/node_modules missing — run: cd frontend && npm install"
+fi
+if [ -n "$frontend_code" ]; then
+  step "Frontend: ESLint on staged files"
+  # Paths relative to frontend/, since ESLint runs there.
+  files=$(printf '%s\n' "$frontend_code" | sed 's|^frontend/||')
+  # shellcheck disable=SC2086
+  (cd frontend && npx --no-install eslint --max-warnings=0 $files) || fail "ESLint found problems (try: cd frontend && npx eslint --fix <file>)."
+fi
+if [ -n "$frontend_code" ] || [ -n "$frontend_other" ]; then
+  step "Frontend: type check"
+  (cd frontend && npm run --silent typecheck) || fail "TypeScript errors."
+  step "Frontend: production build"
+  # Quiet on success; on failure, show the end of the output, where Next reports the error.
+  build_log=$(mktemp)
+  if ! (cd frontend && npm run --silent build) >"$build_log" 2>&1; then
+    tail -n 40 "$build_log" >&2
+    rm -f "$build_log"
+    fail "the production build failed."
+  fi
+  rm -f "$build_log"
+fi
+
+# ── Backend ───────────────────────────────────────────────────────────────
+backend_code=$(printf '%s\n' "$staged" | grep -E '^backend/(src/|build\.gradle\.kts|settings\.gradle\.kts|gradle/)' || true)
+if [ -n "$backend_code" ]; then
+  docker info >/dev/null 2>&1 || fail "Docker isn't running — the backend tests need it for PostgreSQL (Testcontainers).
+Start Docker and commit again, or skip once with: git commit --no-verify"
+  step "Backend: build (compile + tests)"
+  (cd backend && ./gradlew build --quiet --console=plain) || fail "the backend build failed (test report: backend/build/reports/tests/test/index.html)."
+fi
+
+printf '\033[32m✔ pre-commit checks passed\033[0m\n'

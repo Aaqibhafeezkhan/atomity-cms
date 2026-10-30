@@ -1,0 +1,14 @@
+# Root-level ignores. Each app has its own .gitignore as well.
+.env
+.env.*
+!.env.example
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Claude Code local settings
+.claude/settings.local.json

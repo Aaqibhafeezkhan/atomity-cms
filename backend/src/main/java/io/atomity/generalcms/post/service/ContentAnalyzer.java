@@ -1,0 +1,142 @@
+package io.atomity.generalcms.post.service;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import io.atomity.generalcms.shared.ApiException;
+import io.atomity.generalcms.shared.NulCharacters;
+
+import java.util.LinkedHashSet;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.regex.Pattern;
+
+/**
+ * Reads a post body — a Tiptap/ProseMirror JSON document — on save: checks it is a
+ * well-formed document with safe URLs and no NUL characters, and derives the plain text,
+ * word count and the library images it embeds. Mirrors the frontend's lib/content.ts so counts agree.
+ */
+public final class ContentAnalyzer {
+
+    /** Average adult silent-reading speed behind the "N min read" estimate. */
+    static final int WORDS_PER_MINUTE = 200;
+    /** Upper bound on the serialized document. */
+    static final int MAX_DOCUMENT_CHARS = 2 * 1024 * 1024;
+
+    private static final Set<String> BLOCK_TYPES =
+            Set.of("paragraph", "heading", "blockquote", "listItem", "codeBlock", "bulletList", "orderedList");
+    private static final Pattern WHITESPACE = Pattern.compile("\\s+");
+    /** Links may point to the web, an email address, or a path/anchor on the same site. */
+    private static final Pattern SAFE_LINK = Pattern.compile("^(https?://|mailto:|/|#).*", Pattern.CASE_INSENSITIVE);
+    /** Images must come from the web or this server's media endpoint — never data: or javascript: URLs. */
+    private static final Pattern SAFE_IMAGE_SRC = Pattern.compile("^(https?://|/).*", Pattern.CASE_INSENSITIVE);
+
+    public record Analysis(String text, int wordCount, int readingTimeMinutes, Set<UUID> imageIds) {
+        public boolean isEmpty() {
+            return wordCount == 0 && imageIds.isEmpty();
+        }
+    }
+
+    private ContentAnalyzer() {
+    }
+
+    public static Analysis analyze(JsonNode doc) {
+        if (doc == null || !doc.isObject() || !"doc".equals(doc.path("type").asText())) {
+            throw ApiException.badRequest("INVALID_CONTENT", "content must be a document ({\"type\": \"doc\", ...})");
+        }
+        if (doc.toString().length() > MAX_DOCUMENT_CHARS) {
+            throw ApiException.badRequest("CONTENT_TOO_LARGE", "The post body is too large");
+        }
+        if (containsNul(doc)) {
+            throw ApiException.badRequest("INVALID_CONTENT", "The post body must not contain NUL characters");
+        }
+        StringBuilder text = new StringBuilder();
+        Set<UUID> imageIds = new LinkedHashSet<>();
+        walk(doc, text, imageIds);
+
+        String plain = WHITESPACE.matcher(text).replaceAll(" ").strip();
+        int words = plain.isEmpty() ? 0 : plain.split(" ").length;
+        return new Analysis(plain, words, readingTime(words), imageIds);
+    }
+
+    /**
+     * True if any string in the document holds a NUL character: a value or a field name, at any
+     * depth, not only the text the walk below reads. The body is stored as jsonb, which can't hold
+     * one anywhere, and its plain text couldn't be stored either.
+     */
+    private static boolean containsNul(JsonNode node) {
+        if (node.isTextual()) {
+            return NulCharacters.foundIn(node.textValue());
+        }
+        if (node.isObject()) {
+            for (Map.Entry<String, JsonNode> field : node.properties()) {
+                if (NulCharacters.foundIn(field.getKey()) || containsNul(field.getValue())) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        for (JsonNode element : node) {
+            if (containsNul(element)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static int readingTime(int words) {
+        return words == 0 ? 0 : Math.max(1, Math.round(words / (float) WORDS_PER_MINUTE));
+    }
+
+    private static void walk(JsonNode node, StringBuilder text, Set<UUID> imageIds) {
+        String type = node.path("type").asText();
+        switch (type) {
+            case "text" -> {
+                checkMarks(node);
+                text.append(node.path("text").asText());
+                return;
+            }
+            case "hardBreak" -> {
+                text.append(' ');
+                return;
+            }
+            case "image" -> checkImage(node, imageIds);
+            default -> {
+                // Other node types carry no text of their own.
+            }
+        }
+        for (JsonNode child : node.path("content")) {
+            walk(child, text, imageIds);
+        }
+        if (BLOCK_TYPES.contains(type)) {
+            text.append(' ');
+        }
+    }
+
+    private static void checkMarks(JsonNode textNode) {
+        for (JsonNode mark : textNode.path("marks")) {
+            if ("link".equals(mark.path("type").asText())) {
+                String href = mark.path("attrs").path("href").asText("").strip();
+                if (!SAFE_LINK.matcher(href).matches()) {
+                    throw ApiException.badRequest("UNSAFE_LINK", "Links must start with https://, http://, mailto:, / or #");
+                }
+            }
+        }
+    }
+
+    private static void checkImage(JsonNode image, Set<UUID> imageIds) {
+        JsonNode attrs = image.path("attrs");
+        String src = attrs.path("src").asText("").strip().toLowerCase(Locale.ROOT);
+        if (!SAFE_IMAGE_SRC.matcher(src).matches()) {
+            throw ApiException.badRequest("UNSAFE_IMAGE", "Images must use an http(s) URL or come from the media library");
+        }
+        String mediaId = attrs.path("mediaId").asText(null);
+        if (mediaId != null && !mediaId.isBlank()) {
+            try {
+                imageIds.add(UUID.fromString(mediaId));
+            } catch (IllegalArgumentException e) {
+                throw ApiException.badRequest("INVALID_CONTENT", "An image references an invalid media id");
+            }
+        }
+    }
+}
