@@ -7,7 +7,7 @@ body:
     attributes:
       value: |
         Thanks for taking the time to report this! Please search [existing issues](https://github.com/atomityhq/atomity-cms/issues) first.
-        **Security problem?** Don't file it here. Report it privately instead (see [SECURITY.md](https://github.com/atomityhq/atomity-cms/blob/main/SECURITY.md)).
+        **Security problem?** Don't file it as a public issue. Follow [SECURITY.md](https://github.com/atomityhq/atomity-cms/blob/main/SECURITY.md) instead.
 
   - type: textarea
     id: description

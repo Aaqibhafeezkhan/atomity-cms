@@ -7,11 +7,10 @@ body:
       value: |
         ## Stop. This issue would be public.
 
-        **Never describe an exploitable vulnerability in a public issue.** That includes proof-of-concept code,
-        reproduction steps for an exploit, credentials, tokens, and anything that would help someone attack a running instance.
-        Report it privately instead:
-        **[Report a vulnerability privately](https://github.com/atomityhq/atomity-cms/security/advisories/new)**. Only the maintainers can see it.
-        See [SECURITY.md](https://github.com/atomityhq/atomity-cms/blob/main/SECURITY.md) for what to include.
+        **Never describe an exploitable vulnerability in a public issue, comment or discussion.** That includes
+        proof-of-concept code, reproduction steps for an exploit, credentials, tokens, and anything that would help
+        someone attack a running instance. Follow [SECURITY.md](https://github.com/atomityhq/atomity-cms/blob/main/SECURITY.md)
+        to report it privately instead.
 
         Use this form only for **non-sensitive** security topics: hardening suggestions, dependency update requests,
         or questions about the security model.
