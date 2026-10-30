@@ -1,0 +1,52 @@
+name: Question or discussion
+description: Ask how something works, or start a discussion about a topic.
+title: "question: "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ask anything about using, running or contributing to Atomity CMS. For bugs and feature ideas, please use those forms instead.
+        The more technical context you give (what you ran, what you saw), the faster someone can help.
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Type
+      options:
+        - "Question: I need help with something"
+        - "Discussion: I'd like to talk through an idea or design"
+    validations:
+      required: true
+
+  - type: input
+    id: topic
+    attributes:
+      label: Topic
+      placeholder: Adding a new content type, or running the backend without Docker
+    validations:
+      required: true
+
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: What you want to know or discuss. Mention the content type (news, career, docs, kb) and the part of the project (admin UI, API, media, Docker setup) if relevant.
+    validations:
+      required: true
+
+  - type: textarea
+    id: tried
+    attributes:
+      label: What have you tried?
+      description: Commands you ran, docs you read, code or error output. Use `docker compose logs backend` for backend logs and remove any secrets first.
+      render: shell
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Only if it matters for your question.
+      placeholder: |
+        - Running via: docker compose / local toolchain
+        - OS and versions: macOS 15, Docker 27.3

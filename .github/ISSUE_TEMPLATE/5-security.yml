@@ -1,0 +1,46 @@
+name: Security hardening or question (public)
+description: Non-sensitive security topics only. Real vulnerabilities must be reported privately.
+title: "security: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Stop. This issue would be public.
+
+        **Never describe an exploitable vulnerability in a public issue.** That includes proof-of-concept code,
+        reproduction steps for an exploit, credentials, tokens, and anything that would help someone attack a running instance.
+        Report it privately instead:
+        **[Report a vulnerability privately](https://github.com/atomityhq/atomity-cms/security/advisories/new)**. Only the maintainers can see it.
+        See [SECURITY.md](https://github.com/atomityhq/atomity-cms/blob/main/SECURITY.md) for what to include.
+
+        Use this form only for **non-sensitive** security topics: hardening suggestions, dependency update requests,
+        or questions about the security model.
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: What is this about?
+      options:
+        - Hardening suggestion
+        - Dependency update request
+        - Question about the security model
+    validations:
+      required: true
+
+  - type: textarea
+    id: topic
+    attributes:
+      label: Security topic (non-sensitive)
+      description: A hardening idea, an outdated dependency, or a question. Keep it general. No exploit details.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Confirmation
+      options:
+        - label: This is NOT an exploitable vulnerability. Real vulnerabilities are reported privately.
+          required: true
+        - label: This issue contains no exploit details, credentials, tokens or other sensitive information.
+          required: true
