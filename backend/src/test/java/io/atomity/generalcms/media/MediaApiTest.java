@@ -3,6 +3,7 @@ package io.atomity.generalcms.media;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.atomity.generalcms.IntegrationTest;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 
 import java.util.HashMap;
@@ -58,6 +59,23 @@ class MediaApiTest extends IntegrationTest {
         call(multipart("/api/v1/media").file(text))
                 .andExpect(status().isUnsupportedMediaType())
                 .andExpect(jsonPath("$.errors[0].errorCode").value("UNSUPPORTED_TYPE"));
+    }
+
+    @Test
+    void unsupportedContentTypeOnMediaPatchReturns415() throws Exception {
+        call(patch("/api/v1/media/00000000-0000-0000-0000-000000000001")
+                        .contentType(MediaType.TEXT_PLAIN).content("not json"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.errors[0].errorCode").value("UNSUPPORTED_MEDIA_TYPE"))
+                .andExpect(jsonPath("$.errors[0].message").isNotEmpty());
+    }
+
+    @Test
+    void malformedJsonOnMediaPatchRemains400() throws Exception {
+        call(patch("/api/v1/media/00000000-0000-0000-0000-000000000001")
+                        .contentType(MediaType.APPLICATION_JSON).content("{"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[0].errorCode").value("MALFORMED_REQUEST"));
     }
 
     @Test
