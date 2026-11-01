@@ -12,6 +12,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.head;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -351,6 +352,11 @@ class ContentApiTest extends IntegrationTest {
         mockMvc.perform(get("/api/v1/content-types")).andExpect(status().isOk());
         mockMvc.perform(get("/api/v1/content/news")).andExpect(status().isOk());
         mockMvc.perform(get("/api/v1/content/news/slug/public-one")).andExpect(status().isOk());
+        // HEAD must follow the same public rules as GET (caches / probes).
+        mockMvc.perform(head("/api/v1/content-types")).andExpect(status().isOk());
+        mockMvc.perform(head("/api/v1/content/news")).andExpect(status().isOk());
+        mockMvc.perform(head("/api/v1/content/news/slug/public-one")).andExpect(status().isOk());
+        mockMvc.perform(head("/api/v1/posts")).andExpect(status().isUnauthorized());
         // Public does not mean writable.
         mockMvc.perform(post("/api/v1/content/news")).andExpect(status().isUnauthorized());
     }
