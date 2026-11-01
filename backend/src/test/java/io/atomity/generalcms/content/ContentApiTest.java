@@ -3,6 +3,7 @@ package io.atomity.generalcms.content;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.atomity.generalcms.IntegrationTest;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.MediaType;
 
 import java.util.HashMap;
 import java.util.List;
@@ -76,6 +77,34 @@ class ContentApiTest extends IntegrationTest {
             assertThat(updated.path("title").asText()).isEqualTo("After " + type);
             assertThat(updated.path("version").asLong()).isGreaterThan(created.path("version").asLong());
         }
+    }
+
+    @Test
+    void unsupportedContentTypesOnPostAndPutReturn415() throws Exception {
+        String id = "00000000-0000-0000-0000-000000000001";
+
+        call(post("/api/v1/posts").contentType(MediaType.TEXT_PLAIN).content("not json"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.errors[0].errorCode").value("UNSUPPORTED_MEDIA_TYPE"))
+                .andExpect(jsonPath("$.errors[0].message").isNotEmpty());
+
+        call(put("/api/v1/posts/" + id).contentType(MediaType.TEXT_PLAIN).content("not json"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.errors[0].errorCode").value("UNSUPPORTED_MEDIA_TYPE"))
+                .andExpect(jsonPath("$.errors[0].message").isNotEmpty());
+    }
+
+    @Test
+    void malformedJsonOnPostAndPutRemains400() throws Exception {
+        String id = "00000000-0000-0000-0000-000000000001";
+
+        call(post("/api/v1/posts").contentType(MediaType.APPLICATION_JSON).content("{"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[0].errorCode").value("MALFORMED_REQUEST"));
+
+        call(put("/api/v1/posts/" + id).contentType(MediaType.APPLICATION_JSON).content("{"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[0].errorCode").value("MALFORMED_REQUEST"));
     }
 
     @Test
