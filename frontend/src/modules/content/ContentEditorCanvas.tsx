@@ -3,8 +3,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Archive, ArrowLeft, CircleAlert, EllipsisVertical, FileQuestion, RefreshCw, Send, Undo2 } from "lucide-react";
-import { GuardedLink, useBlockNavigation } from "@/components/shell/NavigationGuard";
+import {
+  Archive,
+  ArrowLeft,
+  CircleAlert,
+  EllipsisVertical,
+  FileQuestion,
+  RefreshCw,
+  Send,
+  Undo2,
+} from "lucide-react";
+import {
+  GuardedLink,
+  useBlockNavigation,
+} from "@/components/shell/NavigationGuard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Menu, type MenuItem } from "@/components/ui/Menu";
@@ -16,8 +28,20 @@ import { useUnsavedChangesWarning } from "@/hooks/useUnsavedChangesWarning";
 import { countWords, isDocEmpty } from "@/lib/content";
 import { timeAgo } from "@/lib/format";
 import { ApiError } from "@/types/api";
-import { POST_LIMITS, type ContentTypeDefinition, type Post } from "@/types/post";
-import { archivePost, createPost, getContentTypes, getPost, publishPost, unpublishPost, updatePost } from "./api";
+import {
+  POST_LIMITS,
+  type ContentTypeDefinition,
+  type Post,
+} from "@/types/post";
+import {
+  archivePost,
+  createPost,
+  getContentTypes,
+  getPost,
+  publishPost,
+  unpublishPost,
+  updatePost,
+} from "./api";
 import { describeError, type Failure } from "./errors";
 import { EditorSidebar, type EditorMeta } from "./EditorSidebar";
 import {
@@ -47,15 +71,47 @@ export interface ContentEditorCanvasProps {
   /** The type chosen on the list screen (`?type=`), for a new item. Unknown or missing falls back to the first type. */
   initialType?: string;
 }
+function ArchiveActionsMenu({ onArchive }: { onArchive: () => void }) {
+  const items: (MenuItem | "separator")[] = [
+    {
+      label: "Archive",
+      icon: Archive,
+      onSelect: onArchive,
+    },
+  ];
+
+  return (
+    <Menu
+      items={items}
+      trigger={(props) => (
+        <button
+          type="button"
+          {...props}
+          aria-label="More actions"
+          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-muted hover:bg-hover hover:text-ink"
+        >
+          <EllipsisVertical size={16} />
+        </button>
+      )}
+    />
+  );
+}
 
 /** Route entry: loads the content types and the item (or starts a blank one), then hands over to the editor. */
-export function ContentEditorCanvas({ contentId, initialType }: ContentEditorCanvasProps) {
+export function ContentEditorCanvas({
+  contentId,
+  initialType,
+}: ContentEditorCanvasProps) {
   const types = useAsync(getContentTypes, []);
-  const post = useAsync(() => (contentId ? getPost(contentId) : Promise.resolve(null)), [contentId]);
+  const post = useAsync(
+    () => (contentId ? getPost(contentId) : Promise.resolve(null)),
+    [contentId],
+  );
 
   const error = post.error ?? types.error;
   if (error) {
-    const notFound = post.error instanceof ApiError && post.error.status === 404;
+    const notFound =
+      post.error instanceof ApiError && post.error.status === 404;
     return (
       <div className="mx-auto max-w-[720px] p-[var(--page-pad)]">
         {notFound ? (
@@ -82,13 +138,20 @@ export function ContentEditorCanvas({ contentId, initialType }: ContentEditorCan
       </div>
     );
   }
-  if (post.loading || post.data === undefined || !types.data) return <EditorSkeleton />;
+  if (post.loading || post.data === undefined || !types.data)
+    return <EditorSkeleton />;
 
-  const startTypeKey = post.data?.type ?? (findType(types.data, initialType) ?? types.data[0])?.key;
+  const startTypeKey =
+    post.data?.type ??
+    (findType(types.data, initialType) ?? types.data[0])?.key;
   if (!startTypeKey) {
     return (
       <div className="mx-auto max-w-[720px] p-[var(--page-pad)]">
-        <EmptyState icon={FileQuestion} title="No content types" description="The server didn't list any content types to create." />
+        <EmptyState
+          icon={FileQuestion}
+          title="No content types"
+          description="The server didn't list any content types to create."
+        />
       </div>
     );
   }
@@ -126,9 +189,15 @@ function ContentEditor({
   const router = useRouter();
   const toast = useToast();
 
-  const initialForm = initial ? formFromPost(initial, findType(types, initial.type)) : emptyForm(startTypeKey);
+  const savingRef = useRef(false);
+
+  const initialForm = initial
+    ? formFromPost(initial, findType(types, initial.type))
+    : emptyForm(startTypeKey);
   const [form, setForm] = useState<EditorForm>(initialForm);
-  const [savedSnapshot, setSavedSnapshot] = useState(() => snapshotOf(initialForm));
+  const [savedSnapshot, setSavedSnapshot] = useState(() =>
+    snapshotOf(initialForm),
+  );
   const [post, setPost] = useState<Post | null>(initial);
   const [busy, setBusy] = useState<Busy>(null);
   const [showErrors, setShowErrors] = useState(false);
@@ -159,12 +228,23 @@ function ContentEditor({
     updatedAt: post?.updatedAt ?? null,
   };
 
-  const change = useCallback((patch: Partial<EditorForm>) => setForm((current) => ({ ...current, ...patch })), []);
-  const onContentChange = useCallback((content: EditorForm["content"]) => change({ content }), [change]);
+  const change = useCallback(
+    (patch: Partial<EditorForm>) =>
+      setForm((current) => ({ ...current, ...patch })),
+    [],
+  );
+  const onContentChange = useCallback(
+    (content: EditorForm["content"]) => change({ content }),
+    [change],
+  );
 
   /** Shows a failed request: conflicts, unpublishable and invalid content as a banner, the rest as a toast. */
   const reportFailure = (failure: Failure) => {
-    if (failure.kind === "conflict" || failure.kind === "not-publishable" || failure.kind === "validation") {
+    if (
+      failure.kind === "conflict" ||
+      failure.kind === "not-publishable" ||
+      failure.kind === "validation"
+    ) {
       setBanner({ kind: failure.kind, message: failure.message });
     } else {
       toast.error(failure.message);
@@ -174,9 +254,19 @@ function ContentEditor({
   };
 
   /** Saves the form; resolves to the saved item, or null if it couldn't be saved. */
-  const save = async (options: { quiet?: boolean; stayOnNew?: boolean } = {}): Promise<Post | null> => {
+  const save = async (
+    options: { quiet?: boolean; stayOnNew?: boolean } = {},
+  ): Promise<Post | null> => {
+    // Do not save during an active request, another editor action,
+    // or an unresolved version conflict.
+    if (savingRef.current || busy !== null || conflict) {
+      return null;
+    }
+
     if (!type) {
-      toast.error("This content type is no longer available, so it can't be saved.");
+      toast.error(
+        "This content type is no longer available, so it can't be saved.",
+      );
       return null;
     }
     if (hasErrors(errors)) {
@@ -184,6 +274,8 @@ function ContentEditor({
       toast.error("Fix the highlighted fields before saving.");
       return null;
     }
+    // Acquire the lock synchronously.
+    savingRef.current = true;
     const sent = form;
     setBusy("save");
     try {
@@ -198,7 +290,8 @@ function ContentEditor({
       setShowErrors(false);
       setBanner(null);
       setSlugError(undefined);
-      if (!options.quiet) toast.success(post ? "Changes saved." : "Draft created.");
+      if (!options.quiet)
+        toast.success(post ? "Changes saved." : "Draft created.");
       if (!post && !options.stayOnNew) router.replace(`/content/${saved.id}`);
       return saved;
     } catch (error) {
@@ -206,6 +299,8 @@ function ContentEditor({
       return null;
     } finally {
       setBusy(null);
+      // Re ALlow next request the current reuest finished
+      savingRef.current = false;
     }
   };
 
@@ -226,9 +321,14 @@ function ContentEditor({
   }, []);
 
   /** Status changes act on the saved item, so unsaved edits (or a new item) are saved first. */
-  const changeStatus = async (action: (id: string) => Promise<Post>, success: string, kind: Busy) => {
+  const changeStatus = async (
+    action: (id: string) => Promise<Post>,
+    success: string,
+    kind: Busy,
+  ) => {
     const wasNew = !post;
-    const current = dirty || wasNew ? await save({ quiet: true, stayOnNew: true }) : post;
+    const current =
+      dirty || wasNew ? await save({ quiet: true, stayOnNew: true }) : post;
     if (!current) return;
     setBusy(kind);
     let failure: Failure | null = null;
@@ -255,34 +355,66 @@ function ContentEditor({
     if (problems.length > 0) {
       // Same checks as the server; it would answer 422 NOT_PUBLISHABLE, so don't make the round trip.
       setPublishTried(true);
-      setBanner({ kind: "not-publishable", message: describePublishProblems(problems) });
+      setBanner({
+        kind: "not-publishable",
+        message: describePublishProblems(problems),
+      });
       return;
     }
     void changeStatus(publishPost, "Published.", "publish");
   };
 
-  const menuItems: (MenuItem | "separator")[] =
-    post && status !== "ARCHIVED"
-      ? [{ label: "Archive", icon: Archive, onSelect: () => void changeStatus(archivePost, "Archived.", "status") }]
-      : [];
+  // const menuItems: (MenuItem | "separator")[] =
+  //   post && status !== "ARCHIVED"
+  //     ? [
+  //         {
+  //           label: "Archive",
+  //           icon: Archive,
+  //           onSelect: () =>
+  //             void changeStatus(archivePost, "Archived.", "status"),
+  //         },
+  //       ]
+  //     : [];
 
   const locked = busy !== null || conflict;
   const saveDisabled = locked || (!dirty && Boolean(post));
-  const saveState = busy === "save" ? "Saving…" : dirty ? "Unsaved changes" : post ? `Saved ${timeAgo(post.updatedAt)}` : "Not saved yet";
-  const titleProblem = showPublishProblems ? problems.find((problem) => problem.target === "title") : undefined;
-  const contentProblem = showPublishProblems ? problems.find((problem) => problem.target === "content") : undefined;
-  const titleError = errors.title ?? (titleProblem ? "Add a title to publish." : undefined);
+  const saveState =
+    busy === "save"
+      ? "Saving…"
+      : dirty
+        ? "Unsaved changes"
+        : post
+          ? `Saved ${timeAgo(post.updatedAt)}`
+          : "Not saved yet";
+  const titleProblem = showPublishProblems
+    ? problems.find((problem) => problem.target === "title")
+    : undefined;
+  const contentProblem = showPublishProblems
+    ? problems.find((problem) => problem.target === "content")
+    : undefined;
+  const titleError =
+    errors.title ?? (titleProblem ? "Add a title to publish." : undefined);
 
   return (
     <div className="flex flex-col">
       {/* Action bar */}
       <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-page/95 px-[var(--page-pad)] py-2.5 backdrop-blur">
-        <GuardedLink href="/content" className="flex items-center gap-1.5 text-[12px] font-semibold text-secondary hover:text-ink">
+        <GuardedLink
+          href="/content"
+          className="flex items-center gap-1.5 text-[12px] font-semibold text-secondary hover:text-ink"
+        >
           <ArrowLeft size={14} aria-hidden /> Content
         </GuardedLink>
         <span aria-hidden className="h-4 w-px bg-line" />
         <PostStatusChip status={status} />
-        <span className={dirty ? "text-[12px] font-semibold text-warning" : "text-[12px] text-muted"} aria-live="polite">
+        <span
+          className={
+            dirty
+              ? "text-[12px] font-semibold text-warning"
+              : "text-[12px] text-muted"
+          }
+          aria-live="polite"
+        >
           {saveState}
         </span>
 
@@ -293,19 +425,39 @@ function ContentEditor({
                 type="button"
                 className="btn btn-secondary"
                 disabled={locked}
-                onClick={() => void changeStatus(unpublishPost, "Moved back to drafts.", "status")}
+                onClick={() =>
+                  void changeStatus(
+                    unpublishPost,
+                    "Moved back to drafts.",
+                    "status",
+                  )
+                }
               >
-                {busy === "status" ? <Spinner size={12} /> : <Undo2 size={13} aria-hidden />}
+                {busy === "status" ? (
+                  <Spinner size={12} />
+                ) : (
+                  <Undo2 size={13} aria-hidden />
+                )}
                 Unpublish
               </button>
-              <button type="button" className="btn btn-primary" onClick={() => void save()} disabled={saveDisabled}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => void save()}
+                disabled={saveDisabled}
+              >
                 {busy === "save" && <Spinner size={12} />}
                 Update
               </button>
             </>
           ) : (
             <>
-              <button type="button" className="btn btn-secondary" onClick={() => void save()} disabled={saveDisabled}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => void save()}
+                disabled={saveDisabled}
+              >
                 {busy === "save" && <Spinner size={12} />}
                 {status === "ARCHIVED" ? "Save" : "Save draft"}
               </button>
@@ -314,9 +466,19 @@ function ContentEditor({
                   type="button"
                   className="btn btn-primary"
                   disabled={locked}
-                  onClick={() => void changeStatus(unpublishPost, "Restored to drafts.", "status")}
+                  onClick={() =>
+                    void changeStatus(
+                      unpublishPost,
+                      "Restored to drafts.",
+                      "status",
+                    )
+                  }
                 >
-                  {busy === "status" ? <Spinner size={12} /> : <Undo2 size={13} aria-hidden />}
+                  {busy === "status" ? (
+                    <Spinner size={12} />
+                  ) : (
+                    <Undo2 size={13} aria-hidden />
+                  )}
                   Restore
                 </button>
               ) : (
@@ -326,29 +488,29 @@ function ContentEditor({
                   className="btn btn-green"
                   disabled={locked}
                   aria-disabled={problems.length > 0}
-                  title={problems.length > 0 ? describePublishProblems(problems) : undefined}
+                  title={
+                    problems.length > 0
+                      ? describePublishProblems(problems)
+                      : undefined
+                  }
                   style={problems.length > 0 ? { opacity: 0.55 } : undefined}
                   onClick={publish}
                 >
-                  {busy === "publish" ? <Spinner size={12} /> : <Send size={13} aria-hidden />}
+                  {busy === "publish" ? (
+                    <Spinner size={12} />
+                  ) : (
+                    <Send size={13} aria-hidden />
+                  )}
                   Publish
                 </button>
               )}
             </>
           )}
-          {menuItems.length > 0 && (
-            <Menu
-              items={menuItems}
-              trigger={(props) => (
-                <button
-                  type="button"
-                  {...props}
-                  aria-label="More actions"
-                  className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-muted hover:bg-hover hover:text-ink"
-                >
-                  <EllipsisVertical size={16} />
-                </button>
-              )}
+          {post && status !== "ARCHIVED" && (
+            <ArchiveActionsMenu
+              onArchive={() =>
+                void changeStatus(archivePost, "Archived.", "status")
+              }
             />
           )}
         </div>
@@ -356,7 +518,11 @@ function ContentEditor({
 
       {banner && (
         <div className="mx-auto w-full max-w-[1280px] px-[var(--page-pad)] pt-4">
-          <StatusBanner banner={banner} onReload={onReload} onDismiss={() => setBanner(null)} />
+          <StatusBanner
+            banner={banner}
+            onReload={onReload}
+            onDismiss={() => setBanner(null)}
+          />
         </div>
       )}
 
@@ -373,18 +539,29 @@ function ContentEditor({
               value={form.title}
               onChange={(e) => {
                 const title = e.target.value.replace(/\n/g, " ");
-                setForm((current) => withTitle(current, title, slugFollows.current));
+                setForm((current) =>
+                  withTitle(current, title, slugFollows.current),
+                );
               }}
               placeholder="Title"
               aria-invalid={Boolean(titleError)}
               className="w-full resize-none bg-transparent text-[30px] leading-tight font-bold tracking-[-0.02em] outline-none [field-sizing:content] placeholder:text-[var(--atomity-gray-300)]"
             />
             <div className="flex justify-between text-[11px]">
-              <span className="text-error-text" role={titleError ? "alert" : undefined}>
+              <span
+                className="text-error-text"
+                role={titleError ? "alert" : undefined}
+              >
                 {showErrors || titleProblem ? titleError : ""}
               </span>
               {form.title.length > POST_LIMITS.title * 0.8 && (
-                <span className={form.title.length > POST_LIMITS.title ? "font-bold text-error" : "text-muted"}>
+                <span
+                  className={
+                    form.title.length > POST_LIMITS.title
+                      ? "font-bold text-error"
+                      : "text-muted"
+                  }
+                >
                   {form.title.length}/{POST_LIMITS.title}
                 </span>
               )}
@@ -425,7 +602,9 @@ function ContentEditor({
               setSlugError(undefined);
               change({ slug });
             }}
-            onFieldChange={(name: string, value: FormFieldValue | undefined) => setForm((current) => setField(current, name, value))}
+            onFieldChange={(name: string, value: FormFieldValue | undefined) =>
+              setForm((current) => setField(current, name, value))
+            }
           />
         </aside>
       </div>
@@ -433,7 +612,15 @@ function ContentEditor({
   );
 }
 
-function StatusBanner({ banner, onReload, onDismiss }: { banner: Banner; onReload: () => void; onDismiss: () => void }) {
+function StatusBanner({
+  banner,
+  onReload,
+  onDismiss,
+}: {
+  banner: Banner;
+  onReload: () => void;
+  onDismiss: () => void;
+}) {
   const conflict = banner.kind === "conflict";
   return (
     <div
@@ -444,19 +631,39 @@ function StatusBanner({ banner, onReload, onDismiss }: { banner: Banner; onReloa
           : "flex items-start gap-3 rounded-md border border-warning bg-warning-bg px-3.5 py-3"
       }
     >
-      <CircleAlert size={16} className={conflict || banner.kind === "validation" ? "mt-px shrink-0 text-error" : "mt-px shrink-0 text-warning"} aria-hidden />
+      <CircleAlert
+        size={16}
+        className={
+          conflict || banner.kind === "validation"
+            ? "mt-px shrink-0 text-error"
+            : "mt-px shrink-0 text-warning"
+        }
+        aria-hidden
+      />
       <div className="min-w-0 flex-1">
         <div className="text-[12.5px] font-bold">
-          {conflict ? "Newer version available" : banner.kind === "not-publishable" ? "Can't publish yet" : "Can't save"}
+          {conflict
+            ? "Newer version available"
+            : banner.kind === "not-publishable"
+              ? "Can't publish yet"
+              : "Can't save"}
         </div>
         <p className="text-[12.5px] text-secondary">{banner.message}</p>
       </div>
       {conflict ? (
-        <button type="button" className="btn btn-secondary btn-sm shrink-0" onClick={onReload}>
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm shrink-0"
+          onClick={onReload}
+        >
           <RefreshCw size={12} aria-hidden /> Reload latest
         </button>
       ) : (
-        <button type="button" className="btn btn-ghost btn-sm shrink-0" onClick={onDismiss}>
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm shrink-0"
+          onClick={onDismiss}
+        >
           Dismiss
         </button>
       )}
@@ -466,7 +673,11 @@ function StatusBanner({ banner, onReload, onDismiss }: { banner: Banner; onReloa
 
 function EditorSkeleton() {
   return (
-    <div className="flex flex-col" aria-busy="true" aria-label="Loading content">
+    <div
+      className="flex flex-col"
+      aria-busy="true"
+      aria-label="Loading content"
+    >
       <div className="h-[53px] border-b border-line" />
       <div className="mx-auto grid w-full max-w-[1280px] grid-cols-1 gap-5 p-[var(--page-pad)] lg:grid-cols-[minmax(0,1fr)_var(--editor-sidebar-w)]">
         <div className="flex flex-col gap-4">
@@ -475,7 +686,11 @@ function EditorSkeleton() {
         </div>
         <div className="flex flex-col gap-3">
           {[120, 180, 160, 140].map((h) => (
-            <div key={h} className="skeleton w-full !rounded-lg" style={{ height: h }} />
+            <div
+              key={h}
+              className="skeleton w-full !rounded-lg"
+              style={{ height: h }}
+            />
           ))}
         </div>
       </div>
