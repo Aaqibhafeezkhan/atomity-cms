@@ -144,9 +144,12 @@ Docker Desktop (macOS, Windows) and may need adjusting on Linux.
 ```bash
 make db                                   # Postgres only, in Docker
 make backend                              # Spring Boot on :8080 (profile: local, reads .env)
-cp frontend/.env.example frontend/.env.local
+echo 'BACKEND_API_URL=http://localhost:8080' > frontend/.env.local   # where the frontend finds the backend
 make install && make frontend             # Next.js on :3000 (also enables the git hooks)
 ```
+
+`frontend/.env.local` is ignored by git. The sign-in defaults for local development are the same as in the
+Docker stack (**admin@example.com / admin**).
 
 ## Configuration
 
@@ -184,12 +187,55 @@ atomity-cms/
 └── Makefile               Shortcuts, run `make help`
 ```
 
+## Picking up a task
+
+Work in this repository is tracked as [GitHub issues](https://github.com/atomityhq/atomity-cms/issues).
+Internship candidates and regular contributors follow the same process, from choosing an issue to a
+merged pull request.
+
+```text
+pick an issue ──► comment to claim it ──► fork + branch ──► commit ──► push ──► pull request
+                                                                                      │
+                                                                       review ──► merge to main
+```
+
+1. **Choose an issue.** Browse the [open issues](https://github.com/atomityhq/atomity-cms/issues) and
+   pick one that has no assignee and no open pull request. Issues labelled `good first issue` or
+   `help wanted` are good places to start. If no suitable issue exists, you may report a bug or a
+   feature idea with the bug report or feature request form, then wait for a maintainer to confirm the
+   scope before you start implementing it.
+2. **Claim it.** Comment on the issue that you are taking it, before you start, so nobody duplicates the
+   work. Ask scope questions and agree on the approach in that thread: the issue is where scope is settled.
+3. **Fork and branch.** Fork the repository, clone your fork, then branch from `main` using the prefixes in
+   [CONTRIBUTING.md](CONTRIBUTING.md#workflow) (`feat/`, `fix/`, `chore/`, `docs/`),
+   e.g. `git checkout -b fix/head-on-public-routes`.
+4. **Set up locally.** Follow the [Quick start](#quick-start-docker) or
+   [local development](#local-development-without-containers-for-the-apps), then run `make install`
+   (`make hooks` is enough for backend-only work) so the git hooks are active.
+5. **Make the change.** One issue is one focused pull request, unless the maintainers agree otherwise in
+   the issue. Follow [docs/architecture.md](docs/architecture.md) and the
+   [conventions](CONTRIBUTING.md#conventions), and add or update tests for what you changed.
+6. **Verify it.** Run `make docker-test` and `make docker-check` (or `make check` with a local toolchain),
+   plus `make consumer-test` if you touched `examples/mock-consumer`; see [Tests](#tests). For changes you
+   can see, also try them in the running app (`make up`, then `make demo`). The pre-commit hook re-runs the
+   checks for the parts you staged, and the pre-push hook refuses direct pushes to `main`.
+7. **Commit and push.** Use [Conventional Commits](https://www.conventionalcommits.org/), e.g.
+   `fix: allow HEAD on public GET routes`, then push the branch to your fork:
+   `git push -u origin fix/head-on-public-routes`.
+8. **Open a pull request** against `main` of `atomityhq/atomity-cms`. Fill in the template: what changed,
+   how you tested it (the commands you ran and what they showed) and the checklist. Link the issue with
+   `Closes #<number>`.
+9. **Respond to review.** Discuss in the pull request and push follow-up commits to the same branch. A
+   maintainer merges once the review is done.
+
 ## Contributing
 
-Start with [docs/architecture.md](docs/architecture.md) and [CONTRIBUTING.md](CONTRIBUTING.md). Good
-first pieces: a new content type, a new field type, better rendering in the example website, more
-tests. Everything can be developed and tested locally with the commands above; contributing never
-needs production access. See also our [Code of Conduct](CODE_OF_CONDUCT.md) and [SECURITY.md](SECURITY.md).
+Start with [docs/architecture.md](docs/architecture.md) and [CONTRIBUTING.md](CONTRIBUTING.md); to choose,
+claim and deliver a task, follow [Picking up a task](#picking-up-a-task). Good first pieces: a new content
+type, a new field type, better rendering in the example website, more tests (open a feature request first
+and wait for a maintainer to confirm the scope). Everything can be developed and tested locally with the
+commands above; contributing never needs production access. See also our
+[Code of Conduct](CODE_OF_CONDUCT.md) and [SECURITY.md](SECURITY.md).
 
 ## License
 
