@@ -3,20 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  Archive,
-  ArrowLeft,
-  CircleAlert,
-  EllipsisVertical,
-  FileQuestion,
-  RefreshCw,
-  Send,
-  Undo2,
-} from "lucide-react";
-import {
-  GuardedLink,
-  useBlockNavigation,
-} from "@/components/shell/NavigationGuard";
+import { Archive, ArrowLeft, CircleAlert, EllipsisVertical, FileQuestion, RefreshCw, Send, Undo2 } from "lucide-react";
+import { GuardedLink, useBlockNavigation } from "@/components/shell/NavigationGuard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Menu, type MenuItem } from "@/components/ui/Menu";
@@ -28,20 +16,8 @@ import { useUnsavedChangesWarning } from "@/hooks/useUnsavedChangesWarning";
 import { countWords, isDocEmpty } from "@/lib/content";
 import { timeAgo } from "@/lib/format";
 import { ApiError } from "@/types/api";
-import {
-  POST_LIMITS,
-  type ContentTypeDefinition,
-  type Post,
-} from "@/types/post";
-import {
-  archivePost,
-  createPost,
-  getContentTypes,
-  getPost,
-  publishPost,
-  unpublishPost,
-  updatePost,
-} from "./api";
+import { POST_LIMITS, type ContentTypeDefinition, type Post } from "@/types/post";
+import { archivePost, createPost, getContentTypes, getPost, publishPost, unpublishPost, updatePost } from "./api";
 import { describeError, type Failure } from "./errors";
 import { EditorSidebar, type EditorMeta } from "./EditorSidebar";
 import {
@@ -98,10 +74,7 @@ function ArchiveActionsMenu({ onArchive }: { onArchive: () => void }) {
 }
 
 /** Route entry: loads the content types and the item (or starts a blank one), then hands over to the editor. */
-export function ContentEditorCanvas({
-  contentId,
-  initialType,
-}: ContentEditorCanvasProps) {
+export function ContentEditorCanvas({ contentId, initialType }: ContentEditorCanvasProps) {
   const types = useAsync(getContentTypes, []);
   const post = useAsync(
     () => (contentId ? getPost(contentId) : Promise.resolve(null)),
@@ -191,13 +164,9 @@ function ContentEditor({
 
   const savingRef = useRef(false);
 
-  const initialForm = initial
-    ? formFromPost(initial, findType(types, initial.type))
-    : emptyForm(startTypeKey);
-  const [form, setForm] = useState<EditorForm>(initialForm);
-  const [savedSnapshot, setSavedSnapshot] = useState(() =>
-    snapshotOf(initialForm),
-  );
+const initialForm = initial ? formFromPost(initial, findType(types, initial.type)) : emptyForm(startTypeKey);
+const [form, setForm] = useState<EditorForm>(initialForm);
+const [savedSnapshot, setSavedSnapshot] = useState(() => snapshotOf(initialForm));
   const [post, setPost] = useState<Post | null>(initial);
   const [busy, setBusy] = useState<Busy>(null);
   const [showErrors, setShowErrors] = useState(false);
@@ -222,21 +191,17 @@ function ContentEditor({
   const showPublishProblems = publishTried || status === "PUBLISHED";
   const conflict = banner?.kind === "conflict";
 
+  const locked = busy !== null || conflict;
+  const saveDisabled = locked || (!dirty && Boolean(post));
+
   const meta: EditorMeta = {
     status,
     publishedAt: post?.publishedAt ?? null,
     updatedAt: post?.updatedAt ?? null,
   };
 
-  const change = useCallback(
-    (patch: Partial<EditorForm>) =>
-      setForm((current) => ({ ...current, ...patch })),
-    [],
-  );
-  const onContentChange = useCallback(
-    (content: EditorForm["content"]) => change({ content }),
-    [change],
-  );
+const change = useCallback((patch: Partial<EditorForm>) => setForm((current) => ({ ...current, ...patch })), []);
+const onContentChange = useCallback((content: EditorForm["content"]) => change({ content }), [change]);
 
   /** Shows a failed request: conflicts, unpublishable and invalid content as a banner, the rest as a toast. */
   const reportFailure = (failure: Failure) => {
@@ -259,7 +224,7 @@ function ContentEditor({
   ): Promise<Post | null> => {
     // Do not save during an active request, another editor action,
     // or an unresolved version conflict.
-    if (savingRef.current || busy !== null || conflict) {
+    if (savingRef.current || saveDisabled) {
       return null;
     }
 
@@ -290,8 +255,7 @@ function ContentEditor({
       setShowErrors(false);
       setBanner(null);
       setSlugError(undefined);
-      if (!options.quiet)
-        toast.success(post ? "Changes saved." : "Draft created.");
+      if (!options.quiet) toast.success(post ? "Changes saved." : "Draft created.");
       if (!post && !options.stayOnNew) router.replace(`/content/${saved.id}`);
       return saved;
     } catch (error) {
@@ -299,7 +263,7 @@ function ContentEditor({
       return null;
     } finally {
       setBusy(null);
-      // Re ALlow next request the current reuest finished
+      // Release the save lock when the request finishes.
       savingRef.current = false;
     }
   };
@@ -321,14 +285,9 @@ function ContentEditor({
   }, []);
 
   /** Status changes act on the saved item, so unsaved edits (or a new item) are saved first. */
-  const changeStatus = async (
-    action: (id: string) => Promise<Post>,
-    success: string,
-    kind: Busy,
-  ) => {
+    const changeStatus = async (action: (id: string) => Promise<Post>, success: string, kind: Busy) => {
     const wasNew = !post;
-    const current =
-      dirty || wasNew ? await save({ quiet: true, stayOnNew: true }) : post;
+    const current = dirty || wasNew ? await save({ quiet: true, stayOnNew: true }) : post;
     if (!current) return;
     setBusy(kind);
     let failure: Failure | null = null;
@@ -355,29 +314,12 @@ function ContentEditor({
     if (problems.length > 0) {
       // Same checks as the server; it would answer 422 NOT_PUBLISHABLE, so don't make the round trip.
       setPublishTried(true);
-      setBanner({
-        kind: "not-publishable",
-        message: describePublishProblems(problems),
-      });
+      setBanner({ kind: "not-publishable", message: describePublishProblems(problems) });
       return;
     }
     void changeStatus(publishPost, "Published.", "publish");
   };
 
-  // const menuItems: (MenuItem | "separator")[] =
-  //   post && status !== "ARCHIVED"
-  //     ? [
-  //         {
-  //           label: "Archive",
-  //           icon: Archive,
-  //           onSelect: () =>
-  //             void changeStatus(archivePost, "Archived.", "status"),
-  //         },
-  //       ]
-  //     : [];
-
-  const locked = busy !== null || conflict;
-  const saveDisabled = locked || (!dirty && Boolean(post));
   const saveState =
     busy === "save"
       ? "Saving…"
@@ -440,24 +382,14 @@ function ContentEditor({
                 )}
                 Unpublish
               </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => void save()}
-                disabled={saveDisabled}
-              >
+              <button type="button" className="btn btn-primary" onClick={() => void save()} disabled={saveDisabled}>
                 {busy === "save" && <Spinner size={12} />}
                 Update
               </button>
             </>
           ) : (
             <>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => void save()}
-                disabled={saveDisabled}
-              >
+              <button type="button" className="btn btn-secondary" onClick={() => void save()} disabled={saveDisabled}>
                 {busy === "save" && <Spinner size={12} />}
                 {status === "ARCHIVED" ? "Save" : "Save draft"}
               </button>
@@ -488,19 +420,11 @@ function ContentEditor({
                   className="btn btn-green"
                   disabled={locked}
                   aria-disabled={problems.length > 0}
-                  title={
-                    problems.length > 0
-                      ? describePublishProblems(problems)
-                      : undefined
-                  }
+                  title={problems.length > 0 ? describePublishProblems(problems) : undefined}
                   style={problems.length > 0 ? { opacity: 0.55 } : undefined}
                   onClick={publish}
                 >
-                  {busy === "publish" ? (
-                    <Spinner size={12} />
-                  ) : (
-                    <Send size={13} aria-hidden />
-                  )}
+                  {busy === "publish" ? <Spinner size={12} /> : <Send size={13} aria-hidden />}
                   Publish
                 </button>
               )}
@@ -518,11 +442,7 @@ function ContentEditor({
 
       {banner && (
         <div className="mx-auto w-full max-w-[1280px] px-[var(--page-pad)] pt-4">
-          <StatusBanner
-            banner={banner}
-            onReload={onReload}
-            onDismiss={() => setBanner(null)}
-          />
+          <StatusBanner banner={banner} onReload={onReload} onDismiss={() => setBanner(null)} />
         </div>
       )}
 
@@ -612,15 +532,7 @@ function ContentEditor({
   );
 }
 
-function StatusBanner({
-  banner,
-  onReload,
-  onDismiss,
-}: {
-  banner: Banner;
-  onReload: () => void;
-  onDismiss: () => void;
-}) {
+function StatusBanner({ banner, onReload, onDismiss }: { banner: Banner; onReload: () => void; onDismiss: () => void }) {
   const conflict = banner.kind === "conflict";
   return (
     <div
@@ -631,15 +543,7 @@ function StatusBanner({
           : "flex items-start gap-3 rounded-md border border-warning bg-warning-bg px-3.5 py-3"
       }
     >
-      <CircleAlert
-        size={16}
-        className={
-          conflict || banner.kind === "validation"
-            ? "mt-px shrink-0 text-error"
-            : "mt-px shrink-0 text-warning"
-        }
-        aria-hidden
-      />
+      <CircleAlert size={16} className={conflict || banner.kind === "validation" ? "mt-px shrink-0 text-error" : "mt-px shrink-0 text-warning"} aria-hidden />
       <div className="min-w-0 flex-1">
         <div className="text-[12.5px] font-bold">
           {conflict
@@ -673,11 +577,7 @@ function StatusBanner({
 
 function EditorSkeleton() {
   return (
-    <div
-      className="flex flex-col"
-      aria-busy="true"
-      aria-label="Loading content"
-    >
+    <div className="flex flex-col" aria-busy="true" aria-label="Loading content">
       <div className="h-[53px] border-b border-line" />
       <div className="mx-auto grid w-full max-w-[1280px] grid-cols-1 gap-5 p-[var(--page-pad)] lg:grid-cols-[minmax(0,1fr)_var(--editor-sidebar-w)]">
         <div className="flex flex-col gap-4">

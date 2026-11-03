@@ -395,6 +395,62 @@ describe("ContentEdiorCanvas : Issue #4", () => {
     });
   });
 
+  it("does not save again after a successful save without new edits", async () => {
+    // Step 1: Mock a successful backend response.
+    api.updatePost.mockResolvedValue(savedPost("First", 4));
+
+    // Step 2: Load an existing article.
+    await loadEditor();
+
+    // Step 3: Change the article title.
+    editTitle("First");
+
+    // Step 4: Save the change.
+    pressSaveShortcut();
+
+    await waitFor(() => {
+      expect(api.updatePost).toHaveBeenCalledTimes(1);
+    });
+
+    // Step 5: Wait until the save finishes.
+    await waitFor(() => {
+      expect(screen.queryByText("Unsaved changes")).toBeNull();
+    });
+
+    // Step 6: Verify the Save button is disabled.
+    const saveButton = screen.getByRole("button", {
+      name: "Save draft",
+    }) as HTMLButtonElement;
+
+    expect(saveButton.disabled).toBe(true);
+
+    // Step 7: Press Ctrl+S five more times.
+    for (let i = 0; i < 5; i++) {
+      pressSaveShortcut();
+    }
+
+    // Step 8: No additional requests should be sent.
+    expect(api.updatePost).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not save an unchanged post when Ctrl+S is pressed", async () => {
+    // Step 1: Load an existing article.
+    await loadEditor();
+
+    // Step 2: Confirm the Save button is disabled.
+    const saveButton = screen.getByRole("button", {
+      name: "Save draft",
+    }) as HTMLButtonElement;
+
+    expect(saveButton.disabled).toBe(true);
+
+    // Step 3: Press Ctrl+S without editing anything.
+    pressSaveShortcut();
+
+    // Step 4: No update request should be sent.
+    expect(api.updatePost).not.toHaveBeenCalled();
+  });
+
   it("preserves genuine version-conflict handling", async () => {
     // Step 1: Simulate a genuine backend version conflict.
     api.updatePost.mockRejectedValue(
