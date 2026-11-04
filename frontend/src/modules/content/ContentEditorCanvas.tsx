@@ -47,6 +47,31 @@ export interface ContentEditorCanvasProps {
   /** The type chosen on the list screen (`?type=`), for a new item. Unknown or missing falls back to the first type. */
   initialType?: string;
 }
+function ArchiveActionsMenu({ onArchive }: { onArchive: () => void }) {
+  const items: (MenuItem | "separator")[] = [
+    {
+      label: "Archive",
+      icon: Archive,
+      onSelect: onArchive,
+    },
+  ];
+
+  return (
+    <Menu
+      items={items}
+      trigger={(props) => (
+        <button
+          type="button"
+          {...props}
+          aria-label="More actions"
+          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-muted hover:bg-hover hover:text-ink"
+        >
+          <EllipsisVertical size={16} />
+        </button>
+      )}
+    />
+  );
+}
 
 /** Route entry: loads the content types and the item (or starts a blank one), then hands over to the editor. */
 export function ContentEditorCanvas({ contentId, initialType }: ContentEditorCanvasProps) {
@@ -126,6 +151,8 @@ function ContentEditor({
   const router = useRouter();
   const toast = useToast();
 
+  const savingRef = useRef(false);
+
   const initialForm = initial ? formFromPost(initial, findType(types, initial.type)) : emptyForm(startTypeKey);
   const [form, setForm] = useState<EditorForm>(initialForm);
   const [savedSnapshot, setSavedSnapshot] = useState(() => snapshotOf(initialForm));
@@ -153,6 +180,9 @@ function ContentEditor({
   const showPublishProblems = publishTried || status === "PUBLISHED";
   const conflict = banner?.kind === "conflict";
 
+  const locked = busy !== null || conflict;
+  const saveDisabled = locked || (!dirty && Boolean(post));
+
   const meta: EditorMeta = {
     status,
     publishedAt: post?.publishedAt ?? null,
@@ -175,6 +205,12 @@ function ContentEditor({
 
   /** Saves the form; resolves to the saved item, or null if it couldn't be saved. */
   const save = async (options: { quiet?: boolean; stayOnNew?: boolean } = {}): Promise<Post | null> => {
+    // Do not save during an active request, another editor action,
+    // or an unresolved version conflict.
+    if (savingRef.current || saveDisabled) {
+      return null;
+    }
+
     if (!type) {
       toast.error("This content type is no longer available, so it can't be saved.");
       return null;
@@ -184,6 +220,8 @@ function ContentEditor({
       toast.error("Fix the highlighted fields before saving.");
       return null;
     }
+    // Acquire the lock synchronously.
+    savingRef.current = true;
     const sent = form;
     setBusy("save");
     try {
@@ -206,6 +244,8 @@ function ContentEditor({
       return null;
     } finally {
       setBusy(null);
+      // Release the save lock when the request finishes.
+      savingRef.current = false;
     }
   };
 
@@ -261,13 +301,6 @@ function ContentEditor({
     void changeStatus(publishPost, "Published.", "publish");
   };
 
-  const menuItems: (MenuItem | "separator")[] =
-    post && status !== "ARCHIVED"
-      ? [{ label: "Archive", icon: Archive, onSelect: () => void changeStatus(archivePost, "Archived.", "status") }]
-      : [];
-
-  const locked = busy !== null || conflict;
-  const saveDisabled = locked || (!dirty && Boolean(post));
   const saveState = busy === "save" ? "Saving…" : dirty ? "Unsaved changes" : post ? `Saved ${timeAgo(post.updatedAt)}` : "Not saved yet";
   const titleProblem = showPublishProblems ? problems.find((problem) => problem.target === "title") : undefined;
   const contentProblem = showPublishProblems ? problems.find((problem) => problem.target === "content") : undefined;
@@ -336,19 +369,11 @@ function ContentEditor({
               )}
             </>
           )}
-          {menuItems.length > 0 && (
-            <Menu
-              items={menuItems}
-              trigger={(props) => (
-                <button
-                  type="button"
-                  {...props}
-                  aria-label="More actions"
-                  className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-muted hover:bg-hover hover:text-ink"
-                >
-                  <EllipsisVertical size={16} />
-                </button>
-              )}
+          {post && status !== "ARCHIVED" && (
+            <ArchiveActionsMenu
+              onArchive={() =>
+                void changeStatus(archivePost, "Archived.", "status")
+              }
             />
           )}
         </div>
