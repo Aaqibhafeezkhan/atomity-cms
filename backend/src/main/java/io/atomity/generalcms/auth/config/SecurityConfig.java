@@ -49,9 +49,13 @@ public class SecurityConfig {
                         .requestMatchers("/health/**", "/metrics").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
                         // Image files are public so published pages can embed them.
+                        // HEAD matches GET so caches / probes can check without downloading the body.
                         .requestMatchers(HttpMethod.GET, "/api/v1/media/*/file").permitAll()
+                        .requestMatchers(HttpMethod.HEAD, "/api/v1/media/*/file").permitAll()
                         // Published content is public so independent websites can read it without signing in.
                         .requestMatchers(HttpMethod.GET, "/api/v1/content-types", "/api/v1/content/*",
+                                "/api/v1/content/*/slug/*").permitAll()
+                        .requestMatchers(HttpMethod.HEAD, "/api/v1/content-types", "/api/v1/content/*",
                                 "/api/v1/content/*/slug/*").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth -> oauth
