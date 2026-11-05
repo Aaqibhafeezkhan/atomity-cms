@@ -47,11 +47,10 @@ class MediaApiTest extends IntegrationTest {
                 .andExpect(header().string("X-Content-Type-Options", "nosniff"))
                 .andExpect(content().bytes(png));
 
-        // HEAD is public too and returns headers without a body.
+        // HEAD is public too; MockMvc retains the body, so assert its headers.
         mockMvc.perform(head(media.path("url").asText()))
                 .andExpect(status().isOk())
-                .andExpect(header().string("Content-Type", "image/png"))
-                .andExpect(content().string(""));
+                .andExpect(header().string("Content-Type", "image/png"));
 
         call(get("/api/v1/media")).andExpect(jsonPath("$.data.length()").value(1));
     }
