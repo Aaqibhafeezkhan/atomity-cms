@@ -75,6 +75,7 @@ function savedPost(title: string, version = 4): Post {
 }
 
 beforeEach(() => {
+  localStorage.clear();
   vi.resetAllMocks();
   api.getContentTypes.mockResolvedValue(TYPES);
   api.getPost.mockResolvedValue(post());
@@ -497,5 +498,62 @@ describe("ContentEdiorCanvas : Issue #4", () => {
         name: "Reload latest",
       }),
     ).toBeTruthy();
+  });
+
+  it("shows recovery banner when a local draft exists and allows restoring it", async () => {
+    localStorage.setItem(
+      "atomity:content-recovery:p1",
+      JSON.stringify({
+        formatVersion: 1,
+        savedAt: Date.now(),
+        baseVersion: post().version,
+        form: {
+          type: "news",
+          title: "Recovered Unsaved Title",
+          slug: "recovered-unsaved-title",
+          excerpt: "",
+          content: { type: "doc", content: [{ type: "paragraph" }] },
+          fields: {},
+        },
+      }),
+    );
+
+    await loadEditor();
+
+    expect(await screen.findByText(/An unsaved recovery draft is available/)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Restore draft" }));
+
+    expect(screen.queryByText(/An unsaved recovery draft is available/)).toBeNull();
+    const titleInput = screen.getByRole("textbox", { name: "Title" }) as HTMLTextAreaElement;
+    expect(titleInput.value).toBe("Recovered Unsaved Title");
+  });
+
+  it("removes recovery draft and hides banner when Discard is clicked", async () => {
+    localStorage.setItem(
+      "atomity:content-recovery:p1",
+      JSON.stringify({
+        formatVersion: 1,
+        savedAt: Date.now(),
+        baseVersion: post().version,
+        form: {
+          type: "news",
+          title: "Discard Me",
+          slug: "discard-me",
+          excerpt: "",
+          content: { type: "doc", content: [{ type: "paragraph" }] },
+          fields: {},
+        },
+      }),
+    );
+
+    await loadEditor();
+
+    expect(await screen.findByText(/An unsaved recovery draft is available/)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Discard" }));
+
+    expect(screen.queryByText(/An unsaved recovery draft is available/)).toBeNull();
+    expect(localStorage.getItem("atomity:content-recovery:p1")).toBeNull();
   });
 });

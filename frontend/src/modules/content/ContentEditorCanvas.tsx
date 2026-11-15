@@ -40,6 +40,12 @@ import {
   type FormFieldValue,
 } from "./form";
 import { RichTextEditor } from "./RichTextEditor";
+import {
+  readRecoveryDraft,
+  removeRecoveryDraft,
+  writeRecoveryDraft,
+  type RecoveryDraft,
+} from "./recoveryDraft";
 
 export interface ContentEditorCanvasProps {
   /** Present when editing an existing item. */
@@ -122,6 +128,7 @@ export function ContentEditorCanvas({ contentId, initialType }: ContentEditorCan
   return (
     <ContentEditor
       key={post.data?.id ?? "new"}
+      contentId={post.data?.id ?? contentId}
       initial={post.data}
       types={types.data}
       startTypeKey={startTypeKey}
@@ -138,11 +145,13 @@ interface Banner {
 }
 
 function ContentEditor({
+  contentId,
   initial,
   types,
   startTypeKey,
   onReload,
 }: {
+  contentId?: string;
   initial: Post | null;
   types: ContentTypeDefinition[];
   startTypeKey: string;
@@ -172,6 +181,31 @@ function ContentEditor({
   const dirty = isDirty(form, savedSnapshot);
   useUnsavedChangesWarning(dirty);
   useBlockNavigation(dirty);
+
+  const recoveryId = contentId ?? post?.id;
+  const [recoveryDraft, setRecoveryDraft] = useState<RecoveryDraft | null>(() =>
+    readRecoveryDraft(recoveryId, form.type),
+  );
+
+  useEffect(() => {
+    if (dirty && !recoveryDraft) {
+      writeRecoveryDraft(recoveryId, form, post?.version ?? null);
+    }
+  }, [recoveryId, dirty, form, post?.version, recoveryDraft]);
+
+  const restoreRecoveryDraft = () => {
+    if (!recoveryDraft) return;
+    setForm(recoveryDraft.form);
+    if (post && recoveryDraft.baseVersion !== null) {
+      setPost({ ...post, version: recoveryDraft.baseVersion });
+    }
+    setRecoveryDraft(null);
+  };
+
+  const discardRecoveryDraft = () => {
+    removeRecoveryDraft(recoveryId);
+    setRecoveryDraft(null);
+  };
 
   const errors = useMemo(() => validateForm(form, type), [form, type]);
   const problems = useMemo(() => publishProblems(form, type), [form, type]);
@@ -236,6 +270,8 @@ function ContentEditor({
       setShowErrors(false);
       setBanner(null);
       setSlugError(undefined);
+      removeRecoveryDraft(recoveryId);
+      setRecoveryDraft(null);
       if (!options.quiet) toast.success(post ? "Changes saved." : "Draft created.");
       if (!post && !options.stayOnNew) router.replace(`/content/${saved.id}`);
       return saved;
@@ -382,6 +418,26 @@ function ContentEditor({
       {banner && (
         <div className="mx-auto w-full max-w-[1280px] px-[var(--page-pad)] pt-4">
           <StatusBanner banner={banner} onReload={onReload} onDismiss={() => setBanner(null)} />
+        </div>
+      )}
+
+      {recoveryDraft && (
+        <div className="mx-auto w-full max-w-[1280px] px-[var(--page-pad)] pt-4">
+          <div className="flex items-center gap-3 rounded-md border border-warning bg-warning-bg px-4 py-3">
+            <CircleAlert size={16} className="mt-px shrink-0 text-warning" aria-hidden />
+            <p className="flex-1 text-[12.5px] text-secondary">
+              {recoveryDraft.baseVersion !== (initial?.version ?? null)
+                ? "This recovery draft is based on an older server version. Restoring it may require resolving a version conflict. "
+                : "An unsaved recovery draft is available. "}
+              Saved locally {new Date(recoveryDraft.savedAt).toLocaleTimeString()}.
+            </p>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={discardRecoveryDraft}>
+              Discard
+            </button>
+            <button type="button" className="btn btn-primary btn-sm" onClick={restoreRecoveryDraft}>
+              Restore draft
+            </button>
+          </div>
         </div>
       )}
 
