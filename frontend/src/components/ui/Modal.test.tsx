@@ -88,4 +88,50 @@ describe("Modal focus management : Issue #5", () => {
     expect(document.activeElement).toBe(opener);
     opener.remove();
   });
+
+  it("wraps Shift+Tab to the last control when focus is on the dialog container", () => {
+    // Buttons-only content, like the content-type picker.
+    render(
+      <Modal title="Test dialog" onClose={vi.fn()} footer={<button>Footer</button>}>
+        <button>First</button>
+        <button>Second</button>
+      </Modal>,
+    );
+    screen.getByRole("dialog").focus();
+
+    pressTab(true);
+
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Footer" }));
+  });
+
+  it("ignores controls that are actually hidden when wrapping Tab", () => {
+    // Override the "everything is visible" mock for this test only: an element
+    // inside a [hidden] ancestor (or hidden itself) has no layout box, as in a browser.
+    vi.spyOn(Element.prototype, "getClientRects").mockImplementation(function (this: Element) {
+      return (this.closest("[hidden]") ? [] : [{}]) as unknown as DOMRectList;
+    });
+
+    render(
+      <Modal
+        title="Test dialog"
+        onClose={vi.fn()}
+        footer={
+          <>
+            <button>Footer</button>
+            <button hidden>Ghost</button>
+          </>
+        }
+      >
+        <button>First</button>
+      </Modal>,
+    );
+    screen.getByRole("button", { name: "Footer" }).focus();
+
+    pressTab();
+
+    // Footer is the last visible control, so Tab wraps to the first one (Close).
+  // If hidden controls were not filtered out, Tab would move focus to Ghost
+// instead of wrapping to the first visible control.
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Close" }));
+  });
 });
