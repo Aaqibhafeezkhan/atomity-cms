@@ -19,6 +19,16 @@ export interface ModalProps {
   children: React.ReactNode;
 }
 
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]):not([type="file"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function getFocusable(container: HTMLElement | null): HTMLElement[] {
+  if (!container) return [];
+  return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
+    (el) => el.getClientRects().length > 0, // skips anything not actually displayed
+  );
+}
+
 /**
  * The house dialog (after atomity-product's Modal): dimmed backdrop, Escape and
  * backdrop-click to dismiss, focus moves in on open and back to the opener on close.
@@ -26,6 +36,7 @@ export interface ModalProps {
  */
 export function Modal({ title, description, onClose, maxWidth = 520, footer, children }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
 
   useEffect(() => {
@@ -34,18 +45,54 @@ export function Modal({ title, description, onClose, maxWidth = 520, footer, chi
 
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
-    // Focus the first form control if there is one, otherwise the dialog itself.
-    const firstField = dialogRef.current?.querySelector<HTMLElement>("input, textarea, select");
-    (firstField ?? dialogRef.current)?.focus();
+
+    // Focus the first real form field, else the first focusable element, else the dialog itself.
+    const container = dialogRef.current;
+    const firstField = container?.querySelector<HTMLElement>(
+      'input:not([type="hidden"]):not([type="file"]):not([disabled]), textarea:not([disabled]), select:not([disabled])',
+    );
+    (
+      firstField ??
+      getFocusable(contentRef.current)[0] ??
+      getFocusable(container)[0] ??
+      container
+    )?.focus();
 
     const token = {};
     openStack.push(token);
+
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && openStack[openStack.length - 1] === token) {
+      if (openStack[openStack.length - 1] !== token) return;
+
+      if (event.key === "Escape") {
         event.stopPropagation();
         onCloseRef.current();
+        return;
+      }
+
+      if (event.key === "Tab") {
+        const dialog = dialogRef.current;
+        const items = getFocusable(dialog);
+        if (items.length === 0) {
+          event.preventDefault();
+          dialog?.focus();
+          return;
+        }
+        const first = items[0];
+        const last = items[items.length - 1];
+        const active = document.activeElement;
+        const outside = !dialog?.contains(active);
+
+        if (event.shiftKey && (active === first || active === dialog || outside)) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && (active === last || outside)) {
+          event.preventDefault();
+          first.focus();
+        }
       }
     };
+
     document.addEventListener("keydown", onKeyDown);
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -80,7 +127,7 @@ export function Modal({ title, description, onClose, maxWidth = 520, footer, chi
           </div>
           <IconButton icon={X} label="Close" onClick={onClose} size={24} iconSize={16} />
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-5">{children}</div>
+        <div ref={contentRef} className="min-h-0 flex-1 overflow-y-auto px-6 pb-5">{children}</div>
         {footer && <div className="flex justify-end gap-2 border-t border-line px-6 py-3.5">{footer}</div>}
       </div>
     </div>,
