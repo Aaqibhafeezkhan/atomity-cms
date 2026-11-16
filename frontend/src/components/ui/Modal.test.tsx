@@ -130,8 +130,8 @@ describe("Modal focus management : Issue #5", () => {
     pressTab();
 
     // Footer is the last visible control, so Tab wraps to the first one (Close).
-  // If hidden controls were not filtered out, Tab would move focus to Ghost
-// instead of wrapping to the first visible control.
+    // If hidden controls were not filtered out, Tab would move focus to Ghost
+    // instead of wrapping to the first visible control.
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Close" }));
   });
 });
