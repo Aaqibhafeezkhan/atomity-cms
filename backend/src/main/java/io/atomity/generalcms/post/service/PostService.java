@@ -108,6 +108,9 @@ public class PostService {
     @Transactional
     public PostResponse publish(UUID id) {
         Post post = find(id);
+        if (post.getStatus() == PostStatus.PUBLISHED) {
+            return PostResponse.of(post);
+        }
         ContentTypeDefinition type = ContentTypes.require(post.getContentType());
         List<String> missing = missingForPublication(type, post.getTitle(), post.getContentText().isBlank()
                 && post.getInlineImages().isEmpty(), post.getFields());
@@ -122,6 +125,9 @@ public class PostService {
     @Transactional
     public PostResponse unpublish(UUID id) {
         Post post = find(id);
+        if (post.getStatus() == PostStatus.DRAFT) {
+            return PostResponse.of(post);
+        }
         post.unpublish();
         return PostResponse.of(postRepository.saveAndFlush(post));
     }
@@ -129,6 +135,9 @@ public class PostService {
     @Transactional
     public PostResponse archive(UUID id) {
         Post post = find(id);
+        if (post.getStatus() == PostStatus.ARCHIVED) {
+            return PostResponse.of(post);
+        }
         post.archive();
         return PostResponse.of(postRepository.saveAndFlush(post));
     }

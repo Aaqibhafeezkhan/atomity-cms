@@ -220,6 +220,36 @@ class ContentApiTest extends IntegrationTest {
         assertThat(again.path("publishedAt").asText()).isEqualTo(live.path("publishedAt").asText());
     }
 
+    @Test
+    void repeatedLifecycleOperationsAreIdempotent() throws Exception {
+        JsonNode draft = create("news", "Lifecycle", Map.of());
+        String draftId = draft.path("id").asText();
+        JsonNode draftAgain = data(call(post("/api/v1/posts/" + draftId + "/unpublish")).andExpect(status().isOk()));
+        assertThat(draftAgain.path("status").asText()).isEqualTo("DRAFT");
+        assertThat(draftAgain.path("version").asLong()).isEqualTo(draft.path("version").asLong());
+        assertThat(draftAgain.path("updatedAt").asText()).isEqualTo(draft.path("updatedAt").asText());
+
+        JsonNode published = createAndPublish("news", "Stable");
+        String id = published.path("id").asText();
+        JsonNode publishedAgain = data(call(post("/api/v1/posts/" + id + "/publish")).andExpect(status().isOk()));
+        assertThat(publishedAgain.path("status").asText()).isEqualTo("PUBLISHED");
+        assertThat(publishedAgain.path("version").asLong()).isEqualTo(published.path("version").asLong());
+        assertThat(publishedAgain.path("updatedAt").asText()).isEqualTo(published.path("updatedAt").asText());
+        assertThat(publishedAgain.path("publishedAt").asText()).isEqualTo(published.path("publishedAt").asText());
+
+        JsonNode unpublished = data(call(post("/api/v1/posts/" + id + "/unpublish")).andExpect(status().isOk()));
+        JsonNode unpublishedAgain = data(call(post("/api/v1/posts/" + id + "/unpublish")).andExpect(status().isOk()));
+        assertThat(unpublishedAgain.path("status").asText()).isEqualTo("DRAFT");
+        assertThat(unpublishedAgain.path("version").asLong()).isEqualTo(unpublished.path("version").asLong());
+        assertThat(unpublishedAgain.path("updatedAt").asText()).isEqualTo(unpublished.path("updatedAt").asText());
+
+        JsonNode archived = data(call(post("/api/v1/posts/" + id + "/archive")).andExpect(status().isOk()));
+        JsonNode archivedAgain = data(call(post("/api/v1/posts/" + id + "/archive")).andExpect(status().isOk()));
+        assertThat(archivedAgain.path("status").asText()).isEqualTo("ARCHIVED");
+        assertThat(archivedAgain.path("version").asLong()).isEqualTo(archived.path("version").asLong());
+        assertThat(archivedAgain.path("updatedAt").asText()).isEqualTo(archived.path("updatedAt").asText());
+    }
+
     // ---- public API
 
     @Test
