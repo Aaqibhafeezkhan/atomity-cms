@@ -2,7 +2,7 @@ import { Logo } from "@/components/shell/Logo";
 import { LoginForm } from "./LoginForm";
 
 /** Two-panel sign-in (after atomity-product's auth layout): form left, dark brand panel right on wide screens. */
-export function LoginScreen({ next }: { next?: string }) {
+export function LoginScreen({ next, expired }: { next?: string; expired?: boolean }) {
   return (
     <div className="flex min-h-screen">
       <div className="flex w-full flex-col px-8 py-8 xl:w-[58%]">
@@ -16,7 +16,7 @@ export function LoginScreen({ next }: { next?: string }) {
               <h1 className="mb-2 text-[30px] leading-tight font-bold tracking-[-0.02em]">Sign in to Atomity CMS</h1>
               <p className="text-[13px] text-muted">Write, manage and publish your news, careers, docs and knowledge-base content.</p>
             </div>
-            <LoginForm next={next} />
+            <LoginForm next={next} expired={expired} />
           </div>
         </div>
       </div>

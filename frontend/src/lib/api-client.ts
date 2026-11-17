@@ -23,7 +23,7 @@ export interface ApiResult<T> {
 /** Sends the browser to the login page, returning here afterwards. */
 function redirectToLogin(): void {
   const next = `${window.location.pathname}${window.location.search}`;
-  window.location.assign(`/login?next=${encodeURIComponent(next)}`);
+  window.location.assign(`/login?next=${encodeURIComponent(next)}&reason=expired`);
 }
 
 export async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<ApiResult<T>> {
