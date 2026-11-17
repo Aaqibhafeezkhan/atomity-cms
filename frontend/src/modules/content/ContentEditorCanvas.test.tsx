@@ -556,4 +556,139 @@ describe("ContentEdiorCanvas : Issue #4", () => {
     expect(screen.queryByText(/An unsaved recovery draft is available/)).toBeNull();
     expect(localStorage.getItem("atomity:content-recovery:p1")).toBeNull();
   });
+
+  it("persists draft to storage as the user edits", async () => {
+    await loadEditor();
+    editTitle("Freshly Typed Title");
+
+    await waitFor(() => {
+      const saved = localStorage.getItem("atomity:content-recovery:p1");
+      expect(saved).not.toBeNull();
+      expect(JSON.parse(saved!).form.title).toBe("Freshly Typed Title");
+    });
+  });
+
+  it("preserves unresolved recovery drafts when editing or saving unrelated changes", async () => {
+    localStorage.setItem(
+      "atomity:content-recovery:p1",
+      JSON.stringify({
+        formatVersion: 1,
+        savedAt: Date.now(),
+        baseVersion: post().version,
+        form: {
+          type: "news",
+          title: "Unresolved Important Draft",
+          slug: "unresolved-important-draft",
+          excerpt: "",
+          content: { type: "doc", content: [{ type: "paragraph" }] },
+          fields: {},
+        },
+      }),
+    );
+
+    api.updatePost.mockResolvedValue(savedPost("First"));
+
+    await loadEditor();
+
+    expect(await screen.findByText(/An unsaved recovery draft is available/)).toBeTruthy();
+
+    editTitle("First");
+
+    const stored = JSON.parse(localStorage.getItem("atomity:content-recovery:p1")!);
+    expect(stored.form.title).toBe("Unresolved Important Draft");
+
+    pressSaveShortcut();
+
+    await waitFor(() => {
+      expect(api.updatePost).toHaveBeenCalledTimes(1);
+    });
+
+    expect(localStorage.getItem("atomity:content-recovery:p1")).not.toBeNull();
+    const storedAfterSave = JSON.parse(localStorage.getItem("atomity:content-recovery:p1")!);
+    expect(storedAfterSave.form.title).toBe("Unresolved Important Draft");
+    expect(screen.getByText(/An unsaved recovery draft is available/)).toBeTruthy();
+  });
+
+  it("retains recovery draft if save fails, and cleans it up after successful save", async () => {
+    localStorage.setItem(
+      "atomity:content-recovery:p1",
+      JSON.stringify({
+        formatVersion: 1,
+        savedAt: Date.now(),
+        baseVersion: post().version,
+        form: {
+          type: "news",
+          title: "Restored Form",
+          slug: "restored-form",
+          excerpt: "",
+          content: { type: "doc", content: [{ type: "paragraph" }] },
+          fields: {},
+        },
+      }),
+    );
+
+    const firstRequest = deferred<Post>();
+    api.updatePost
+      .mockReturnValueOnce(firstRequest.promise)
+      .mockResolvedValueOnce(savedPost("Restored Form", 4));
+
+    await loadEditor();
+    fireEvent.click(screen.getByRole("button", { name: "Restore draft" }));
+
+    pressSaveShortcut();
+    expect(api.updatePost).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      firstRequest.reject(new Error("Server Failure"));
+    });
+
+    expect(localStorage.getItem("atomity:content-recovery:p1")).not.toBeNull();
+
+    pressSaveShortcut();
+
+    await waitFor(() => {
+      expect(api.updatePost).toHaveBeenCalledTimes(2);
+    });
+
+    await waitFor(() => {
+      expect(localStorage.getItem("atomity:content-recovery:p1")).toBeNull();
+    });
+  });
+
+  it("preserves baseVersion when a restored draft is saved", async () => {
+    api.getPost.mockResolvedValue(post({ version: 10 }));
+    api.updatePost.mockResolvedValue(savedPost("Restored Title", 3));
+
+    localStorage.setItem(
+      "atomity:content-recovery:p1",
+      JSON.stringify({
+        formatVersion: 1,
+        savedAt: Date.now(),
+        baseVersion: 2,
+        form: {
+          type: "news",
+          title: "Restored Title",
+          slug: "restored-title",
+          excerpt: "",
+          content: { type: "doc", content: [{ type: "paragraph" }] },
+          fields: {},
+        },
+      }),
+    );
+
+    await loadEditor();
+    fireEvent.click(screen.getByRole("button", { name: "Restore draft" }));
+
+    pressSaveShortcut();
+
+    await waitFor(() => {
+      expect(api.updatePost).toHaveBeenCalledWith(
+        "p1",
+        expect.objectContaining({
+          title: "Restored Title",
+          version: 2,
+        }),
+      );
+    });
+  });
 });

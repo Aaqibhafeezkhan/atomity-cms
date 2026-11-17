@@ -270,8 +270,9 @@ function ContentEditor({
       setShowErrors(false);
       setBanner(null);
       setSlugError(undefined);
-      removeRecoveryDraft(recoveryId);
-      setRecoveryDraft(null);
+      if (!recoveryDraft) {
+        removeRecoveryDraft(recoveryId);
+      }
       if (!options.quiet) toast.success(post ? "Changes saved." : "Draft created.");
       if (!post && !options.stayOnNew) router.replace(`/content/${saved.id}`);
       return saved;
