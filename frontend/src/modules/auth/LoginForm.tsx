@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff } from "lucide-react";
+import { CircleAlert, Eye, EyeOff } from "lucide-react";
 import { Spinner } from "@/components/ui/Spinner";
 
 /** Only same-site paths are honoured for `?next=`, so the login page can't be used as an open redirect. */
@@ -10,7 +10,7 @@ function safeNext(next: string | undefined): string {
   return next && next.startsWith("/") && !next.startsWith("//") ? next : "/content";
 }
 
-export function LoginForm({ next }: { next?: string }) {
+export function LoginForm({ next, expired }: { next?: string; expired?: boolean }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -44,6 +44,15 @@ export function LoginForm({ next }: { next?: string }) {
 
   return (
     <form onSubmit={submit} noValidate className="flex flex-col gap-4">
+      {expired && (
+        <div
+          role="status"
+          className="flex items-center gap-2.5 rounded-md border border-warning bg-warning-bg px-3.5 py-2.5 text-[12.5px] text-secondary"
+        >
+          <CircleAlert size={15} className="shrink-0 text-warning" aria-hidden />
+          <span>Your session has expired. Please sign in again.</span>
+        </div>
+      )}
       <div className="flex flex-col gap-1.5">
         <label htmlFor="email" className="field-label">
           Email
