@@ -108,6 +108,57 @@ class ContentApiTest extends IntegrationTest {
                 .andExpect(jsonPath("$.errors[0].errorCode").value("MALFORMED_REQUEST"));
     }
 
+    private List<JsonNode> malformedDocuments() throws Exception {
+        return List.of(
+                objectMapper.readTree("""
+                        {"type":"doc","content":{"item":{"type":"paragraph",
+                          "content":[{"type":"text","text":"Hello world"}]}}}
+                        """),
+                objectMapper.readTree("""
+                        {"type":"doc","content":[{"type":"paragraph","content":[{"type":42}]}]}
+                        """),
+                objectMapper.readTree("""
+                        {"type":"doc","content":[{"type":"paragraph","content":[
+                          {"type":"text","text":"Hello world","marks":{}}]}]}
+                        """),
+                objectMapper.readTree("""
+                        {"type":"doc","content":[{"type":"paragraph","content":[
+                          {"type":"text","text":"Hello world","marks":[null]}]}]}
+                        """));
+    }
+
+    @Test
+    void malformedStructuresCannotBeCreated() throws Exception {
+        for (JsonNode malformed : malformedDocuments()) {
+            Map<String, Object> request = body("news", "Malformed", Map.of());
+            request.put("content", malformed);
+            call(post("/api/v1/posts"), request)
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.errors[0].errorCode").value("INVALID_CONTENT"));
+            call(get("/api/v1/posts")).andExpect(jsonPath("$.meta.totalElements").value(0));
+        }
+    }
+
+    @Test
+    void malformedStructuresCannotOverwritePublishedContent() throws Exception {
+        JsonNode original = createAndPublish("news", "Keep original");
+        String id = original.path("id").asText();
+        JsonNode originalPublic = data(mockMvc.perform(get("/api/v1/content/news/slug/keep-original"))
+                .andExpect(status().isOk()));
+        for (JsonNode malformed : malformedDocuments()) {
+            Map<String, Object> edit = body("news", "Changed title", Map.of());
+            edit.put("version", original.path("version").asLong());
+            edit.put("content", malformed);
+            call(put("/api/v1/posts/" + id), edit)
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.errors[0].errorCode").value("INVALID_CONTENT"));
+            assertThat(data(call(get("/api/v1/posts/" + id)).andExpect(status().isOk())))
+                    .isEqualTo(original);
+            assertThat(data(mockMvc.perform(get("/api/v1/content/news/slug/keep-original"))
+                    .andExpect(status().isOk()))).isEqualTo(originalPublic);
+        }
+    }
+
     @Test
     void draftsMayBeIncomplete() throws Exception {
         // No title, an empty body and none of the career's required fields: still saveable as a draft.

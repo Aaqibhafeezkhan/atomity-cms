@@ -53,6 +53,77 @@ class ContentAnalyzerTest {
     }
 
     @Test
+    void rejectsNonArrayContentAtAnyDepth() throws Exception {
+        for (String invalid : List.of("{}", "'bad'", "42", "true")) {
+            assertInvalidStructure("{'type':'doc','content':" + invalid + "}");
+            for (String type : List.of("paragraph", "text", "hardBreak", "futureWidget")) {
+                assertInvalidStructure("{'type':'doc','content':[{'type':'" + type
+                        + "','content':" + invalid + "}]}");
+            }
+        }
+        // Exact structure from issue #38: Jackson iterated object values as though they were nodes.
+        assertInvalidStructure("""
+                {'type':'doc','content':{'item':{'type':'paragraph',
+                  'content':[{'type':'text','text':'Hello world'}]}}}
+                """);
+    }
+
+    @Test
+    void rejectsContentEntriesWithoutAnObjectAndStringType() throws Exception {
+        for (String invalid : List.of("null", "[]", "'text'", "42", "true", "{}",
+                "{'type':null}", "{'type':42}", "{'type':true}", "{'type':[]}", "{'type':{}}")) {
+            assertInvalidStructure("{'type':'doc','content':[" + invalid + "]}");
+            assertInvalidStructure("{'type':'doc','content':[{'type':'paragraph','content':["
+                    + invalid + "]}]}");
+        }
+        // Text and hardBreak return early during analysis; their children still need validation.
+        for (String type : List.of("text", "hardBreak")) {
+            assertInvalidStructure("{'type':'doc','content':[{'type':'" + type + "','content':[{}]}]}");
+        }
+    }
+
+    @Test
+    void rejectsMalformedMarksOnAnyNode() throws Exception {
+        for (String invalid : List.of("{}", "'bad'", "42", "true", "[null]", "[[]]", "['bold']", "[42]", "[true]")) {
+            assertInvalidStructure("{'type':'doc','marks':" + invalid + "}");
+            for (String type : List.of("paragraph", "text", "hardBreak", "futureWidget")) {
+                assertInvalidStructure("{'type':'doc','content':[{'type':'" + type
+                        + "','marks':" + invalid + "}]}");
+            }
+        }
+    }
+
+    @Test
+    void preservesMissingNullAndEmptyContentAndMarks() throws Exception {
+        for (String members : List.of("", ",'content':null,'marks':null", ",'content':[],'marks':[]")) {
+            assertThat(ContentAnalyzer.analyze(parse("{'type':'doc'" + members + "}")).isEmpty()).isTrue();
+            assertThat(ContentAnalyzer.analyze(parse("{'type':'doc','content':[{'type':'paragraph'"
+                    + members + "}]}")).isEmpty()).isTrue();
+        }
+    }
+
+    @Test
+    void preservesUnknownNodesAndObjectMarksWithoutEnforcingASchema() throws Exception {
+        var analysis = ContentAnalyzer.analyze(parse("""
+                {'type':'doc','marks':[{}],'content':[{'type':'futureWidget','content':[
+                  {'type':'paragraph','marks':[{'custom':true}],'content':[
+                    {'type':'text','text':'Hello world','marks':[{}, {'type':'futureMark'}]}
+                  ]}
+                ]}]}
+                """));
+        assertThat(analysis.text()).isEqualTo("Hello world");
+        assertThat(analysis.wordCount()).isEqualTo(2);
+    }
+
+    private void assertInvalidStructure(String json) throws Exception {
+        JsonNode document = parse(json);
+        assertThatThrownBy(() -> ContentAnalyzer.analyze(document))
+                .as("Malformed document: %s", json)
+                .isInstanceOf(ApiException.class)
+                .extracting("errorCode").isEqualTo("INVALID_CONTENT");
+    }
+
+    @Test
     void rejectsUnsafeUrls() {
         assertThatThrownBy(() -> ContentAnalyzer.analyze(parse(
                 "{'type':'doc','content':[{'type':'image','attrs':{'src':'data:image/svg+xml;base64,AAAA'}}]}")))
