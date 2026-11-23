@@ -50,6 +50,7 @@ public final class ContentAnalyzer {
         if (containsNul(doc)) {
             throw ApiException.badRequest("INVALID_CONTENT", "The post body must not contain NUL characters");
         }
+        validateStructure(doc);
         StringBuilder text = new StringBuilder();
         Set<UUID> imageIds = new LinkedHashSet<>();
         walk(doc, text, imageIds);
@@ -82,6 +83,33 @@ public final class ContentAnalyzer {
             }
         }
         return false;
+    }
+
+    /** Validate every node before walking: text and hardBreak stop the analysis walk early. */
+    private static void validateStructure(JsonNode node) {
+        if (!node.isObject() || !node.path("type").isTextual()) {
+            throw ApiException.badRequest("INVALID_CONTENT", "Each content node must be an object with a string type");
+        }
+        JsonNode marks = node.get("marks");
+        if (marks != null && !marks.isNull()) {
+            if (!marks.isArray()) {
+                throw ApiException.badRequest("INVALID_CONTENT", "Node marks must be an array of objects");
+            }
+            for (JsonNode mark : marks) {
+                if (!mark.isObject()) {
+                    throw ApiException.badRequest("INVALID_CONTENT", "Each mark must be an object");
+                }
+            }
+        }
+        JsonNode content = node.get("content");
+        if (content != null && !content.isNull()) {
+            if (!content.isArray()) {
+                throw ApiException.badRequest("INVALID_CONTENT", "Node content must be an array of nodes");
+            }
+            for (JsonNode child : content) {
+                validateStructure(child);
+            }
+        }
     }
 
     static int readingTime(int words) {
