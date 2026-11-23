@@ -106,23 +106,12 @@ class MediaApiTest extends IntegrationTest {
         JsonNode media = upload("inline.png", "image/png", TestImages.encode("png", 20, 20));
         String id = media.path("id").asText();
 
-        Map<String, Object> image = Map.of("type", "image",
-                "attrs", Map.of("src", media.path("url").asText(), "mediaId", id));
-        Map<String, Object> body = new HashMap<>();
-        body.put("type", "news");
-        body.put("title", "Has an image");
-        body.put("content", Map.of("type", "doc", "content", List.of(image)));
-        String postId = data(call(post("/api/v1/posts"), body).andExpect(status().isCreated())).path("id").asText();
+        String postId = createPostWithImage(media);
 
         call(get("/api/v1/media")).andExpect(jsonPath("$.data[0].usageCount").value(1));
         call(delete("/api/v1/media/" + id))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.errors[0].errorCode").value("MEDIA_IN_USE"));
-
-        call(post("/api/v1/posts/" + postId + "/duplicate")).andExpect(status().isCreated())
-                .andExpect(jsonPath("$.data.content.content[0].attrs.mediaId").value(id));
-        call(get("/api/v1/media")).andExpect(jsonPath("$.data.length()").value(1))
-                .andExpect(jsonPath("$.data[0].usageCount").value(2));
 
         // An image-only post counts as having content, so it can be published.
         call(post("/api/v1/posts/" + postId + "/publish")).andExpect(status().isOk());
@@ -133,9 +122,31 @@ class MediaApiTest extends IntegrationTest {
     }
 
     @Test
+    void duplicateReusesEmbeddedImages() throws Exception {
+        JsonNode media = upload("inline.png", "image/png", TestImages.encode("png", 20, 20));
+        String id = media.path("id").asText();
+        String postId = createPostWithImage(media);
+
+        call(post("/api/v1/posts/" + postId + "/duplicate")).andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.content.content[0].attrs.mediaId").value(id));
+        call(get("/api/v1/media")).andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].usageCount").value(2));
+    }
+
+    @Test
     void unusedImageCanBeDeleted() throws Exception {
         JsonNode media = upload("spare.png", "image/png", TestImages.encode("png", 20, 20));
         call(delete("/api/v1/media/" + media.path("id").asText())).andExpect(status().isNoContent());
         mockMvc.perform(get(media.path("url").asText())).andExpect(status().isNotFound());
+    }
+
+    private String createPostWithImage(JsonNode media) throws Exception {
+        Map<String, Object> image = Map.of("type", "image",
+                "attrs", Map.of("src", media.path("url").asText(), "mediaId", media.path("id").asText()));
+        Map<String, Object> body = new HashMap<>();
+        body.put("type", "news");
+        body.put("title", "Has an image");
+        body.put("content", Map.of("type", "doc", "content", List.of(image)));
+        return data(call(post("/api/v1/posts"), body).andExpect(status().isCreated())).path("id").asText();
     }
 }
