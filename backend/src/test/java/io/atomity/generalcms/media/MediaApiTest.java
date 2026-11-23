@@ -119,6 +119,11 @@ class MediaApiTest extends IntegrationTest {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.errors[0].errorCode").value("MEDIA_IN_USE"));
 
+        call(post("/api/v1/posts/" + postId + "/duplicate")).andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.content.content[0].attrs.mediaId").value(id));
+        call(get("/api/v1/media")).andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].usageCount").value(2));
+
         // An image-only post counts as having content, so it can be published.
         call(post("/api/v1/posts/" + postId + "/publish")).andExpect(status().isOk());
 

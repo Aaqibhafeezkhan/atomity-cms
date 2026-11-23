@@ -57,6 +57,45 @@ class ContentApiTest extends IntegrationTest {
     // ---- creating and updating
 
     @Test
+    void duplicateCreatesIndependentPrivateDraft() throws Exception {
+        JsonNode source = createAndPublish("career", "Internship");
+        String path = "/api/v1/posts/" + source.path("id").asText();
+        JsonNode copy = data(call(post(path + "/duplicate")).andExpect(status().isCreated()));
+        for (String field : List.of("type", "title", "excerpt", "content", "fields")) {
+            assertThat(copy.get(field)).isEqualTo(source.get(field));
+        }
+        assertThat(copy.get("id")).isNotEqualTo(source.get("id"));
+        assertThat(copy.get("publishedAt").isNull()).isTrue();
+        assertThat(copy.get("version").asLong()).isZero();
+        assertThat(copy.get("status").asText()).isEqualTo("DRAFT");
+        assertThat(data(call(get(path)))).isEqualTo(source);
+        String publicPath = "/api/v1/content/career/slug/" + copy.get("slug").asText();
+        mockMvc.perform(get(publicPath)).andExpect(status().isNotFound());
+        call(post("/api/v1/posts/" + copy.get("id").asText() + "/publish")).andExpect(status().isOk());
+        mockMvc.perform(get(publicPath)).andExpect(status().isOk());
+    }
+
+    @Test
+    void repeatedCopiesFitSlugLimit() throws Exception {
+        var request = body("career", "Incomplete", Map.of());
+        request.put("slug", "a".repeat(160));
+        JsonNode source = data(call(post("/api/v1/posts"), request).andExpect(status().isCreated()));
+        String path = "/api/v1/posts/" + source.get("id").asText() + "/duplicate";
+        for (String suffix : List.of("-copy", "-copy-2")) {
+            JsonNode copy = data(call(post(path)).andExpect(status().isCreated()));
+            assertThat(copy.get("slug").asText()).isEqualTo("a".repeat(160 - suffix.length()) + suffix);
+        }
+    }
+
+    @Test
+    void duplicateRequiresAdminAndExistingSource() throws Exception {
+        String path = "/api/v1/posts/00000000-0000-0000-0000-000000000001/duplicate";
+        mockMvc.perform(post(path)).andExpect(status().isUnauthorized());
+        call(post(path)).andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errors[0].errorCode").value("NOT_FOUND"));
+    }
+
+    @Test
     void everyTypeCanBeCreatedAsADraft() throws Exception {
         for (String type : List.of("news", "career", "docs", "kb")) {
             JsonNode created = create(type, "A " + type + " item", VALID_FIELDS.get(type));

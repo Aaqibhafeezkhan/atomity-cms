@@ -121,6 +121,7 @@ Repeated failures are rate limited.
 |---|---|
 | `POST /posts/{id}/publish` | `PUBLISHED`; needs a title, some content and every required field of the type (`422 NOT_PUBLISHABLE` otherwise, with a message such as "Add the Department field and the Application URL field before publishing."). `publishedAt` is set the first time and kept afterwards. |
 | `POST /posts/{id}/unpublish` | Back to `DRAFT` (also restores an archived item). The public API stops returning it. |
+| `POST /posts/{id}/duplicate` | No request body. Returns the new draft (201), or 404 for a missing source. Copies the type, title, excerpt, body, fields and embedded media references. The copy starts at version 0 with a new ID and no publication date. Its slug uses `-copy`, then `-copy-2`, etc., shortening the source slug to fit 160 characters. |
 | `POST /posts/{id}/archive` | `ARCHIVED`. The public API stops returning it. |
 
 ### Media

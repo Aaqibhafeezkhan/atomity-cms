@@ -72,6 +72,24 @@ public class PostService {
         return PostResponse.of(postRepository.saveAndFlush(post));
     }
 
+    @Transactional
+    public PostResponse duplicate(UUID id) {
+        Post source = postRepository.findForDuplication(id).orElseThrow(() -> ApiException.notFound("Content"));
+        String slug = copySlug(source);
+        return create(new PostRequest(source.getContentType(), source.getTitle(), slug, source.getExcerpt(),
+                source.getContent().deepCopy(), source.getFields().deepCopy(), null));
+    }
+
+    private String copySlug(Post source) {
+        for (long copy = 1; ; copy++) {
+            String suffix = copy == 1 ? "-copy" : "-copy-" + copy;
+            String slug = truncate(source.getSlug(), MAX_SLUG_LENGTH - suffix.length()) + suffix;
+            if (!postRepository.existsByContentTypeAndSlug(source.getContentType(), slug)) {
+                return slug;
+            }
+        }
+    }
+
     /**
      * Saves an edit. The request carries the version the editor loaded; if the item has
      * moved on since, the save is refused instead of silently overwriting the newer one.
