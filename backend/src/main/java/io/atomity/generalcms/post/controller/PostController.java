@@ -50,6 +50,11 @@ public class PostController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(postService.create(request)));
     }
 
+    @PostMapping("/{id}/duplicate")
+    public ResponseEntity<ApiResponse<PostResponse>> duplicate(@PathVariable UUID id) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(postService.duplicate(id)));
+    }
+
     @PutMapping("/{id}")
     public ApiResponse<PostResponse> update(@PathVariable UUID id, @Valid @RequestBody PostRequest request) {
         return ApiResponse.ok(postService.update(id, request));
